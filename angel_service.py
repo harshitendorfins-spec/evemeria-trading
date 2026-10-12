@@ -21,22 +21,24 @@ class AngelOneService:
         self.load_saved_credentials()
 
     def load_saved_credentials(self):
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT api_key, client_id, pin, totp_secret FROM angel_settings WHERE id = 1")
-        row = cursor.fetchone()
-        conn.close()
+        self.api_key = ""
+        self.client_id = ""
+        self.pin = ""
+        self.totp_secret = ""
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT api_key, client_id, pin, totp_secret FROM angel_settings WHERE id = 1")
+            row = cursor.fetchone()
+            conn.close()
 
-        if row and row["api_key"] and row["client_id"]:
-            self.api_key = row["api_key"]
-            self.client_id = row["client_id"]
-            self.pin = row["pin"]
-            self.totp_secret = row["totp_secret"]
-        else:
-            self.api_key = ""
-            self.client_id = ""
-            self.pin = ""
-            self.totp_secret = ""
+            if row and row["api_key"] and row["client_id"]:
+                self.api_key = row["api_key"]
+                self.client_id = row["client_id"]
+                self.pin = row["pin"]
+                self.totp_secret = row["totp_secret"]
+        except Exception as e:
+            print(f"[AngelService DB Warning] Could not load credentials yet: {e}")
 
     def save_credentials(self, api_key, client_id, pin, totp_secret):
         conn = get_connection()

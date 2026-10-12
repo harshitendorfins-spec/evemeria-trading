@@ -194,6 +194,11 @@ def init_db():
     );
     """)
 
+    cursor.execute("""
+    INSERT OR IGNORE INTO angel_settings (id, api_key, client_id, pin, totp_secret, is_connected)
+    VALUES (1, '', '', '', '', 0);
+    """)
+
     # 8. User-Specific Watchlists Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS watchlists (
@@ -212,6 +217,12 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+# Auto-initialize database on import so tables always exist immediately
+try:
+    init_db()
+except Exception as e:
+    print(f"[Database Auto-Init Warning] {e}")
 
 def get_user_watchlist(user_id: int):
     conn = get_connection()

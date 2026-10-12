@@ -8,6 +8,8 @@ from typing import Optional, List, Dict
 
 from fastapi.middleware.cors import CORSMiddleware
 import database
+database.init_db()
+
 from angel_service import angel_service
 import engine
 import scrip_manager
@@ -22,8 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-database.init_db()
 
 # Mobile & Desktop Access Allowed Anywhere
 
