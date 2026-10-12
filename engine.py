@@ -1,6 +1,8 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from database import get_connection
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 MAX_TRADE_RISK = 100000.0   # Max 1% per trade (1 Lakh on 1 Crore)
 MAX_DAILY_LOSS = 100000.0   # Max 1% daily MTM loss (1 Lakh on 1 Crore)
@@ -208,7 +210,7 @@ def place_order(type_, name, token, product, qty, order_price, strategy_id="stra
 
     # RMS Check 0: MIS Intraday Orders Not Allowed After 3:10 PM (15:10 IST)
     if product == "MIS":
-        now = datetime.now()
+        now = datetime.now(IST)
         if now.hour > 15 or (now.hour == 15 and now.minute >= 10):
             return {
                 "success": False,
@@ -450,7 +452,7 @@ def check_all_users_rms_and_sl(live_prices):
                 })
 
         # Check MIS Intraday Auto Square-off at/after 15:15 IST (3:15 PM)
-        now = datetime.now()
+        now = datetime.now(IST)
         if now.hour > 15 or (now.hour == 15 and now.minute >= 15):
             for p in positions:
                 if p["product"] == "MIS":

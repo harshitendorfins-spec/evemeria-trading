@@ -266,9 +266,9 @@
     <!-- Center: Live Feed Status & Admin Portal Tab Button (Admin Only) -->
     <div class="flex items-center space-x-2 md:space-x-3">
       <!-- Market Status -->
-      <div id="market-status-badge" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+      <div id="market-status-badge" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
         <span id="market-dot" class="w-2 h-2 rounded-full bg-gray-400"></span>
-        <span id="market-status-text">Market OPEN</span>
+        <span id="market-status-text">Market Status</span>
       </div>
 
       <!-- Admin Master Portal Button (Visible ONLY to Admin) -->
@@ -1562,6 +1562,10 @@
             bnChgEl.className = `${bnPos ? 'text-evemeria-green' : 'text-evemeria-red'} font-semibold font-mono`;
           }
         }
+        if (res.market_status) {
+          state.marketStatus = res.market_status;
+          updateMarketStatusHeader();
+        }
         if (res.watchlist) {
           state.watchlist = res.watchlist;
           renderWatchlist();
@@ -1700,12 +1704,12 @@
 
       if (state.marketStatus.is_open) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-        text.textContent = 'Market OPEN (Live Ticks)';
-        badge.className = 'hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        text.textContent = 'Market OPEN (Live)';
+        badge.className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
       } else {
-        dot.className = 'w-2 h-2 rounded-full bg-gray-400';
-        text.textContent = 'Market CLOSED';
-        badge.className = 'hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200';
+        dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        text.textContent = 'Market CLOSED (Opens 9:15 AM IST)';
+        badge.className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200';
       }
 
       if (state.marketStatus.is_connected) {

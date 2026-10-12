@@ -205,6 +205,7 @@ def get_live_watchlist(user_id: int = 1):
         user_wl = database.get_user_watchlist(user_id)
 
     # Attach live quotes
+    m_stat = angel_service.get_market_status()
     enriched = []
     for item in user_wl:
         tok = str(item["token"])
@@ -213,9 +214,15 @@ def get_live_watchlist(user_id: int = 1):
             angel_service.live_prices[tok] = base_p
 
         ltp = float(angel_service.live_prices.get(tok, 150.0))
-        close = float(item.get("close") or (ltp * 0.994))
-        chg = round(ltp - close, 2)
-        chg_pct = round((chg / close) * 100, 2) if close else 0.0
+        if not m_stat.get("is_open"):
+            close = ltp
+            chg = 0.0
+            chg_pct = 0.0
+        else:
+            close = float(item.get("close") or (ltp * 0.994))
+            chg = round(ltp - close, 2)
+            chg_pct = round((chg / close) * 100, 2) if close else 0.0
+
         enriched.append({
             "id": f"NFO_{tok}",
             "token": tok,
@@ -233,7 +240,8 @@ def get_live_watchlist(user_id: int = 1):
 
     return {
         "indices": indices_cache,
-        "watchlist": enriched
+        "watchlist": enriched,
+        "market_status": m_stat
     }
 
 @app.get("/api/search")
@@ -442,72 +450,112 @@ async def start_background_monitor():
 
         while True:
             try:
-                if angel_service.is_authenticated and angel_service.smart_api:
-                    # 1. Nifty 50 Index Quote
-                    try:
-                        n_q = angel_service.smart_api.ltpData("NSE", "Nifty 50", "99926000")
-                        if n_q and n_q.get("status") and n_q.get("data"):
-                            d = n_q["data"]
-                            ltp = float(d.get("ltp", 0.0))
-                            close = float(d.get("close", ltp))
-                            chg = round(ltp - close, 2)
-                            chg_pct = round((chg / close) * 100, 2) if close else 0.0
-                            indices_cache["NIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
-                            angel_service.live_prices["99926000"] = ltp
-                    except Exception:
-                        pass
+                m_status = angel_service.get_market_status()
+                is_open = m_status.get("is_open", False)
 
-                    # 2. Bank Nifty Index Quote
-                    try:
-                        bn_q = angel_service.smart_api.ltpData("NSE", "Nifty Bank", "99926009")
-                        if bn_q and bn_q.get("status") and bn_q.get("data"):
-                            d = bn_q["data"]
-                            ltp = float(d.get("ltp", 0.0))
-                            close = float(d.get("close", ltp))
-                            chg = round(ltp - close, 2)
-                            chg_pct = round((chg / close) * 100, 2) if close else 0.0
-                            indices_cache["BANKNIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
-                            angel_service.live_prices["99926009"] = ltp
-                    except Exception:
-                        pass
+                if is_open:
+                    if angel_service.is_authenticated and angel_service.smart_api:
+                        # 1. Nifty 50 Index Quote
+                        try:
+                            n_q = angel_service.smart_api.ltpData("NSE", "Nifty 50", "99926000")
+                            if n_q and n_q.get("status") and n_q.get("data"):
+                                d = n_q["data"]
+                                ltp = float(d.get("ltp", 0.0))
+                                close = float(d.get("close", ltp))
+                                chg = round(ltp - close, 2)
+                                chg_pct = round((chg / close) * 100, 2) if close else 0.0
+                                indices_cache["NIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
+                                angel_service.live_prices["99926000"] = ltp
+                        except Exception:
+                            pass
 
-                    # 3. Watchlist & Active Position Quotes across all users
-                    try:
-                        c_loop = database.get_connection()
-                        cur_loop = c_loop.cursor()
-                        cur_loop.execute("""
-                            SELECT DISTINCT token, name FROM watchlists
-                            UNION
-                            SELECT DISTINCT token, name FROM positions
-                        """)
-                        active_items = [dict(r) for r in cur_loop.fetchall()]
-                        c_loop.close()
+                        # 2. Bank Nifty Index Quote
+                        try:
+                            bn_q = angel_service.smart_api.ltpData("NSE", "Nifty Bank", "99926009")
+                            if bn_q and bn_q.get("status") and bn_q.get("data"):
+                                d = bn_q["data"]
+                                ltp = float(d.get("ltp", 0.0))
+                                close = float(d.get("close", ltp))
+                                chg = round(ltp - close, 2)
+                                chg_pct = round((chg / close) * 100, 2) if close else 0.0
+                                indices_cache["BANKNIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
+                                angel_service.live_prices["99926009"] = ltp
+                        except Exception:
+                            pass
 
-                        for item in active_items:
-                            try:
+                        # 3. Watchlist & Active Position Quotes across all users
+                        try:
+                            c_loop = database.get_connection()
+                            cur_loop = c_loop.cursor()
+                            cur_loop.execute("""
+                                SELECT DISTINCT token, name FROM watchlists
+                                UNION
+                                SELECT DISTINCT token, name FROM positions
+                            """)
+                            active_items = [dict(r) for r in cur_loop.fetchall()]
+                            c_loop.close()
+
+                            for item in active_items:
+                                try:
+                                    tok = str(item["token"])
+                                    q = angel_service.smart_api.ltpData("NFO", item["name"], tok)
+                                    if q and q.get("status") and q.get("data"):
+                                        d = q["data"]
+                                        ltp = float(d.get("ltp", 0.0))
+                                        angel_service.live_prices[tok] = ltp
+                                    await asyncio.sleep(0.08)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                    else:
+                        # Market is open but Angel One is not authenticated: live simulation during market hours
+                        n_step = round(random.choice([-1.5, -0.5, 0.0, 0.5, 1.5]), 2)
+                        indices_cache["NIFTY"]["ltp"] = round(indices_cache["NIFTY"]["ltp"] + n_step, 2)
+                        indices_cache["NIFTY"]["chg"] = round(indices_cache["NIFTY"]["ltp"] - indices_cache["NIFTY"]["close"], 2)
+                        indices_cache["NIFTY"]["chg_pct"] = round((indices_cache["NIFTY"]["chg"] / indices_cache["NIFTY"]["close"]) * 100, 2)
+
+                        bn_step = round(random.choice([-4.0, -1.0, 0.0, 1.0, 4.0]), 2)
+                        indices_cache["BANKNIFTY"]["ltp"] = round(indices_cache["BANKNIFTY"]["ltp"] + bn_step, 2)
+                        indices_cache["BANKNIFTY"]["chg"] = round(indices_cache["BANKNIFTY"]["ltp"] - indices_cache["BANKNIFTY"]["close"], 2)
+                        indices_cache["BANKNIFTY"]["chg_pct"] = round((indices_cache["BANKNIFTY"]["chg"] / indices_cache["BANKNIFTY"]["close"]) * 100, 2)
+
+                        try:
+                            c_loop = database.get_connection()
+                            cur_loop = c_loop.cursor()
+                            cur_loop.execute("""
+                                SELECT DISTINCT token, name, strike, type FROM watchlists
+                                UNION
+                                SELECT DISTINCT token, name, 0 as strike, 'FUT' as type FROM positions
+                            """)
+                            active_items = [dict(r) for r in cur_loop.fetchall()]
+                            c_loop.close()
+
+                            for item in active_items:
                                 tok = str(item["token"])
-                                q = angel_service.smart_api.ltpData("NFO", item["name"], tok)
-                                if q and q.get("status") and q.get("data"):
-                                    d = q["data"]
-                                    ltp = float(d.get("ltp", 0.0))
-                                    angel_service.live_prices[tok] = ltp
-                                await asyncio.sleep(0.08)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                                cur_p = angel_service.live_prices.get(tok)
+                                if cur_p is None or cur_p <= 0:
+                                    cur_p = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
+                                tick = round(random.choice([-0.20, -0.10, -0.05, 0.05, 0.10, 0.20]), 2)
+                                angel_service.live_prices[tok] = max(1.0, round(cur_p + tick, 2))
+                        except Exception:
+                            pass
+
+                    # 4. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
+                    alerts = engine.check_all_users_rms_and_sl(angel_service.live_prices)
+                    if alerts:
+                        print(f"[RMS/SL Alerts] {alerts}")
+
                 else:
-                    # Dynamic tick updates when Angel One is not authenticated or market is closed
-                    n_step = round(random.choice([-1.5, -0.5, 0.0, 0.5, 1.5]), 2)
-                    indices_cache["NIFTY"]["ltp"] = round(indices_cache["NIFTY"]["ltp"] + n_step, 2)
-                    indices_cache["NIFTY"]["chg"] = round(indices_cache["NIFTY"]["ltp"] - indices_cache["NIFTY"]["close"], 2)
-                    indices_cache["NIFTY"]["chg_pct"] = round((indices_cache["NIFTY"]["chg"] / indices_cache["NIFTY"]["close"]) * 100, 2)
+                    # MARKET CLOSED (Raat / Holidays): Freeze prices completely at official close, NO jitter!
+                    indices_cache["NIFTY"]["ltp"] = indices_cache["NIFTY"]["close"]
+                    indices_cache["NIFTY"]["chg"] = 0.0
+                    indices_cache["NIFTY"]["chg_pct"] = 0.0
+                    indices_cache["BANKNIFTY"]["ltp"] = indices_cache["BANKNIFTY"]["close"]
+                    indices_cache["BANKNIFTY"]["chg"] = 0.0
+                    indices_cache["BANKNIFTY"]["chg_pct"] = 0.0
 
-                    bn_step = round(random.choice([-4.0, -1.0, 0.0, 1.0, 4.0]), 2)
-                    indices_cache["BANKNIFTY"]["ltp"] = round(indices_cache["BANKNIFTY"]["ltp"] + bn_step, 2)
-                    indices_cache["BANKNIFTY"]["chg"] = round(indices_cache["BANKNIFTY"]["ltp"] - indices_cache["BANKNIFTY"]["close"], 2)
-                    indices_cache["BANKNIFTY"]["chg_pct"] = round((indices_cache["BANKNIFTY"]["chg"] / indices_cache["BANKNIFTY"]["close"]) * 100, 2)
-
+                    # Ensure tokens have their stable closing price in cache, but DO NOT fluctuate
                     try:
                         c_loop = database.get_connection()
                         cur_loop = c_loop.cursor()
@@ -521,23 +569,15 @@ async def start_background_monitor():
 
                         for item in active_items:
                             tok = str(item["token"])
-                            cur_p = angel_service.live_prices.get(tok)
-                            if cur_p is None or cur_p <= 0:
-                                cur_p = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
-                            tick = round(random.choice([-0.20, -0.10, -0.05, 0.05, 0.10, 0.20]), 2)
-                            angel_service.live_prices[tok] = max(1.0, round(cur_p + tick, 2))
+                            if tok not in angel_service.live_prices or angel_service.live_prices[tok] <= 0:
+                                angel_service.live_prices[tok] = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
                     except Exception:
                         pass
-
-                # 4. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
-                alerts = engine.check_all_users_rms_and_sl(angel_service.live_prices)
-                if alerts:
-                    print(f"[RMS/SL Alerts] {alerts}")
 
             except Exception as e:
                 print(f"[Live Loop Error] {e}")
 
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2.0)
 
     asyncio.create_task(live_quote_loop())
 
