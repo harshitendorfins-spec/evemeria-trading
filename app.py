@@ -63,24 +63,46 @@ class LoginRequest(BaseModel):
     username: str
     pin: str
 
-# In-memory Watchlist State
-active_watchlist = []
+class RegisterRequest(BaseModel):
+    username: str
+    pin: str
+    display_name: Optional[str] = None
+
+# Indices Cache
 indices_cache = {
     "NIFTY": {"ltp": 22368.05, "close": 22520.45, "chg": -152.40, "chg_pct": -0.68},
     "BANKNIFTY": {"ltp": 54842.80, "close": 55256.65, "chg": -413.85, "chg_pct": -0.75}
 }
-
-active_watchlist = scrip_manager.get_default_watchlist_contracts()
 
 # Serve Frontend
 @app.get("/")
 def get_index():
     return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
 
-# Auth / 18 Users
+# Auth / Users & Self-Registration
 @app.get("/api/auth/users")
 def get_trader_list():
     return engine.get_all_users()
+
+@app.post("/api/auth/register")
+def register_trader(req: RegisterRequest):
+    res = database.register_user(req.username, req.pin, req.display_name)
+    if res.get("success"):
+        # Seed initial default watchlist for this newly registered trader
+        new_u_id = res["user"]["id"]
+        defs = scrip_manager.get_default_watchlist_contracts()
+        for d in defs:
+            database.add_user_watchlist_item(
+                user_id=new_u_id,
+                token=str(d["token"]),
+                symbol=d.get("symbol", ""),
+                name=d.get("name", ""),
+                exchange=d.get("exchange", "NFO"),
+                type_=d.get("type", "FUT"),
+                strike=float(d.get("strike", 0.0)),
+                lot=int(d.get("lot", 1))
+            )
+    return res
 
 @app.post("/api/auth/login")
 def login_trader(req: LoginRequest):
@@ -93,7 +115,7 @@ def login_trader(req: LoginRequest):
     normalized_user = raw_user
     if clean.isdigit():
         desk_num = int(clean)
-        if 1 <= desk_num <= 18:
+        if 1 <= desk_num <= 99:
             normalized_user = f"TRADER{desk_num:02d}"
 
     conn = database.get_connection()
@@ -108,7 +130,7 @@ def login_trader(req: LoginRequest):
         user_dict = dict(u)
         user_dict["pin_verified"] = pin
         return {"success": True, "user": user_dict}
-    return {"success": False, "message": "Invalid User ID or PIN. (Default Trader PIN: 1234, Admin PIN: 9999)"}
+    return {"success": False, "message": "Invalid User ID or Password/PIN."}
 
 # Status & Market Info
 @app.get("/api/status")
@@ -123,12 +145,52 @@ def connect_angel(req: AngelConnectRequest):
     res = angel_service.connect(req.api_key, req.client_id, req.pin, req.totp_secret)
     return res
 
-# Watchlist & Search
+# Isolated User-Specific Watchlist & Search
 @app.get("/api/watchlist")
-def get_live_watchlist():
+def get_live_watchlist(user_id: int = 1):
+    user_wl = database.get_user_watchlist(user_id)
+    if not user_wl:
+        # Seed default watchlist if empty for this user
+        defs = scrip_manager.get_default_watchlist_contracts()
+        for d in defs:
+            database.add_user_watchlist_item(
+                user_id=user_id,
+                token=str(d["token"]),
+                symbol=d.get("symbol", ""),
+                name=d.get("name", ""),
+                exchange=d.get("exchange", "NFO"),
+                type_=d.get("type", "FUT"),
+                strike=float(d.get("strike", 0.0)),
+                lot=int(d.get("lot", 1))
+            )
+        user_wl = database.get_user_watchlist(user_id)
+
+    # Attach live quotes
+    enriched = []
+    for item in user_wl:
+        tok = str(item["token"])
+        ltp = float(angel_service.live_prices.get(tok, item.get("ltp") or 0.0))
+        close = float(item.get("close") or ltp)
+        chg = round(ltp - close, 2)
+        chg_pct = round((chg / close) * 100, 2) if close else 0.0
+        enriched.append({
+            "id": f"NFO_{tok}",
+            "token": tok,
+            "exchange": item.get("exchange", "NFO"),
+            "symbol": item.get("symbol"),
+            "name": item.get("name"),
+            "type": item.get("type", "FUT"),
+            "strike": item.get("strike", 0.0),
+            "lot": item.get("lot", 1),
+            "ltp": ltp,
+            "close": close,
+            "chg": chg,
+            "chg_pct": chg_pct
+        })
+
     return {
         "indices": indices_cache,
-        "watchlist": active_watchlist
+        "watchlist": enriched
     }
 
 @app.get("/api/search")
@@ -137,30 +199,22 @@ def search_scrips(q: str):
 
 @app.post("/api/watchlist/add")
 def add_to_watchlist(req: dict):
-    global active_watchlist
+    u_id = int(req.get("user_id", 1))
     token = str(req.get("token"))
-    if not any(str(w.get("token")) == token for w in active_watchlist):
-        active_watchlist.append({
-            "id": f"NFO_{token}",
-            "token": token,
-            "exchange": "NFO",
-            "symbol": req.get("symbol"),
-            "name": req.get("name"),
-            "type": req.get("type", "FUT"),
-            "strike": req.get("strike", 0.0),
-            "lot": req.get("lot", 1),
-            "ltp": 0.0,
-            "close": 0.0,
-            "chg": 0.0,
-            "chg_pct": 0.0
-        })
-    return {"success": True, "watchlist": active_watchlist}
+    symbol = req.get("symbol", "")
+    name = req.get("name", "")
+    exchange = req.get("exchange", "NFO")
+    type_ = req.get("type", "FUT")
+    strike = float(req.get("strike", 0.0))
+    lot = int(req.get("lot", 1))
+
+    database.add_user_watchlist_item(u_id, token, symbol, name, exchange, type_, strike, lot)
+    return {"success": True, "message": f"Added {name} to Watchlist."}
 
 @app.delete("/api/watchlist/{token}")
-def delete_from_watchlist(token: str):
-    global active_watchlist
-    active_watchlist = [w for w in active_watchlist if str(w.get("token")) != str(token)]
-    return {"success": True, "watchlist": active_watchlist}
+def delete_from_watchlist(token: str, user_id: int = 1):
+    database.delete_user_watchlist_item(user_id, token)
+    return {"success": True, "message": "Removed from Watchlist."}
 
 # Strategies API
 @app.get("/api/strategies")
@@ -188,9 +242,17 @@ class ExitStrategyRequest(BaseModel):
     strategy_id: str
     user_id: Optional[int] = 1
 
+class ExitGroupRequest(BaseModel):
+    symbol: str
+    user_id: Optional[int] = 1
+
 @app.post("/api/positions/exit-strategy")
 def exit_strategy_api(req: ExitStrategyRequest):
     return engine.exit_strategy_positions(req.strategy_id, req.user_id or 1, angel_service.live_prices)
+
+@app.post("/api/positions/exit-group")
+def exit_group_api(req: ExitGroupRequest):
+    return engine.exit_symbol_group(req.symbol, req.user_id or 1, angel_service.live_prices)
 
 # Orders API
 @app.get("/api/orders")
@@ -253,7 +315,7 @@ def reset_funds_api(req: dict):
         raise HTTPException(status_code=403, detail="Unauthorized: Only Admin can reset funds.")
     return engine.reset_user_account(user_id)
 
-# Desk Monitor / Leaderboard for All 18 Desks (Admin Access Only)
+# Desk Monitor / Leaderboard for All Desks (Admin Access Only)
 @app.get("/api/desk/leaderboard")
 def get_desk_leaderboard_api(admin_pin: str = ""):
     conn = database.get_connection()
@@ -262,8 +324,56 @@ def get_desk_leaderboard_api(admin_pin: str = ""):
     admin = cursor.fetchone()
     conn.close()
     if not admin:
-        raise HTTPException(status_code=403, detail="Unauthorized: Only Admin can view 18 Desks Monitor.")
+        raise HTTPException(status_code=403, detail="Unauthorized: Only Admin can view Desks Monitor.")
     return engine.get_desk_leaderboard(angel_service.live_prices)
+
+@app.get("/api/admin/all-positions")
+def get_admin_all_positions(admin_pin: str = ""):
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = 'ADMIN' AND pin = ?", (admin_pin.strip(),))
+    admin = cursor.fetchone()
+    if not admin:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Unauthorized: Only Admin can view All Positions.")
+
+    cursor.execute("""
+        SELECT p.*, u.username, u.display_name, u.desk_no 
+        FROM positions p 
+        JOIN users u ON p.user_id = u.id 
+        ORDER BY u.desk_no ASC, p.created_at DESC
+    """)
+    positions = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    for p in positions:
+        tok = str(p["token"])
+        p["ltp"] = float(angel_service.live_prices.get(tok, p.get("ltp") or p["avg_price"]))
+        is_long = p["qty"] > 0
+        pnl = (p["ltp"] - p["avg_price"]) * p["qty"] if is_long else (p["avg_price"] - p["ltp"]) * abs(p["qty"])
+        p["pnl"] = round(pnl, 2)
+
+    return positions
+
+@app.get("/api/admin/all-closed-trades")
+def get_admin_all_closed_trades(admin_pin: str = ""):
+    conn = database.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = 'ADMIN' AND pin = ?", (admin_pin.strip(),))
+    admin = cursor.fetchone()
+    if not admin:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Unauthorized: Only Admin can view Closed Trades.")
+
+    cursor.execute("""
+        SELECT c.*, u.username, u.display_name, u.desk_no 
+        FROM closed_trades c 
+        JOIN users u ON c.user_id = u.id 
+        ORDER BY c.id DESC LIMIT 500
+    """)
+    trades = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return trades
 
 @app.post("/api/desk/unlock")
 def unlock_desk_api(req: dict):
@@ -301,7 +411,7 @@ async def start_background_monitor():
                             chg_pct = round((chg / close) * 100, 2) if close else 0.0
                             indices_cache["NIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
                             angel_service.live_prices["99926000"] = ltp
-                    except Exception as e:
+                    except Exception:
                         pass
 
                     # 2. Bank Nifty Index Quote
@@ -315,29 +425,36 @@ async def start_background_monitor():
                             chg_pct = round((chg / close) * 100, 2) if close else 0.0
                             indices_cache["BANKNIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
                             angel_service.live_prices["99926009"] = ltp
-                    except Exception as e:
+                    except Exception:
                         pass
 
-                    # 3. Watchlist Quotes
-                    for item in active_watchlist:
-                        try:
-                            q = angel_service.smart_api.ltpData("NFO", item["name"], str(item["token"]))
-                            if q and q.get("status") and q.get("data"):
-                                d = q["data"]
-                                ltp = float(d.get("ltp", 0.0))
-                                close = float(d.get("close", ltp))
-                                chg = round(ltp - close, 2)
-                                chg_pct = round((chg / close) * 100, 2) if close else 0.0
-                                item["ltp"] = ltp
-                                item["close"] = close
-                                item["chg"] = chg
-                                item["chg_pct"] = chg_pct
-                                angel_service.live_prices[str(item["token"])] = ltp
-                            await asyncio.sleep(0.12)
-                        except Exception as e:
-                            pass
+                    # 3. Watchlist & Active Position Quotes across all users
+                    try:
+                        c_loop = database.get_connection()
+                        cur_loop = c_loop.cursor()
+                        cur_loop.execute("""
+                            SELECT DISTINCT token, name FROM watchlists
+                            UNION
+                            SELECT DISTINCT token, name FROM positions
+                        """)
+                        active_items = [dict(r) for r in cur_loop.fetchall()]
+                        c_loop.close()
 
-                    # 4. Check All 18 Users SL, Target & Daily 1% RMS Loss auto square-offs
+                        for item in active_items:
+                            try:
+                                tok = str(item["token"])
+                                q = angel_service.smart_api.ltpData("NFO", item["name"], tok)
+                                if q and q.get("status") and q.get("data"):
+                                    d = q["data"]
+                                    ltp = float(d.get("ltp", 0.0))
+                                    angel_service.live_prices[tok] = ltp
+                                await asyncio.sleep(0.08)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                    # 4. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
                     alerts = engine.check_all_users_rms_and_sl(angel_service.live_prices)
                     if alerts:
                         print(f"[RMS/SL Alerts] {alerts}")
@@ -351,5 +468,6 @@ async def start_background_monitor():
 
 if __name__ == "__main__":
     import uvicorn
-    # Bind to 0.0.0.0 so all 18 office desktops on LAN can connect!
-    uvicorn.run("app:app", host="0.0.0.0", port=8080, reload=False)
+    # Dynamically bind to cloud PORT (e.g. Render, Railway) or default to 8080 locally
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

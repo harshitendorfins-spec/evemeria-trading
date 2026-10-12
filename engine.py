@@ -185,12 +185,35 @@ def get_user_ledger(user_id=1):
     conn.close()
     return rows
 
+import re
+
+def extract_underlying_symbol(name):
+    if not name:
+        return "GENERAL"
+    clean = name.strip().upper()
+    for idx in ["BANKNIFTY", "MIDCPNIFTY", "FINNIFTY", "NIFTY"]:
+        if clean.startswith(idx):
+            return idx
+    m = re.match(r"^([A-Z]+)", clean)
+    if m:
+        return m.group(1)
+    return clean
+
 # =========================================================================
 # ORDER PLACEMENT WITH RMS CHECKS
 # =========================================================================
 def place_order(type_, name, token, product, qty, order_price, strategy_id="strat_general", stoploss=None, target=None, user_id=1):
     exec_price = float(order_price)
     lot_size = 30 if "BANKNIFTY" in name else (65 if "NIFTY" in name and not ("BANK" in name) else 500)
+
+    # RMS Check 0: MIS Intraday Orders Not Allowed After 3:10 PM (15:10 IST)
+    if product == "MIS":
+        now = datetime.now()
+        if now.hour > 15 or (now.hour == 15 and now.minute >= 10):
+            return {
+                "success": False,
+                "message": "🚨 RMS REJECTION: Intraday (MIS) orders are blocked after 3:10 PM (15:10 IST). Please select NRML for positional carry-forward trades."
+            }
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -246,7 +269,7 @@ def place_order(type_, name, token, product, qty, order_price, strategy_id="stra
     """, (user_id, name, product, strategy_id))
     existing = cursor.fetchone()
 
-    symbol_tag = "NIFTY" if "NIFTY" in name and not ("BANK" in name) else ("BANKNIFTY" if "BANKNIFTY" in name else name.split("2")[0])
+    symbol_tag = extract_underlying_symbol(name)
 
     if existing:
         old_qty = existing["qty"]
@@ -426,6 +449,21 @@ def check_all_users_rms_and_sl(live_prices):
                     "price": ltp
                 })
 
+        # Check MIS Intraday Auto Square-off at/after 15:15 IST (3:15 PM)
+        now = datetime.now()
+        if now.hour > 15 or (now.hour == 15 and now.minute >= 15):
+            for p in positions:
+                if p["product"] == "MIS":
+                    token = str(p["token"])
+                    ltp = float(live_prices.get(token, p["ltp"] or p["avg_price"]))
+                    exit_position(p["id"], abs(p["qty"]), ltp, exit_reason="MIS_AUTO_SQUARE_OFF_315PM", user_id=u_id)
+                    triggered_alerts.append({
+                        "user": u["username"],
+                        "instrument": p["name"],
+                        "reason": "MIS_AUTO_SQUARE_OFF_315PM",
+                        "price": ltp
+                    })
+
         # Check RMS Daily MTM Loss (-1% = -₹1,00,000)
         total_daily_pnl = u["realised_pnl"] + unrealised
         if total_daily_pnl <= -MAX_DAILY_LOSS and not u["is_rms_locked"]:
@@ -466,6 +504,7 @@ def get_grouped_positions(user_id=1, live_prices={}):
     grouped = {}
     total_unrealised_pnl = 0.0
 
+    # Group by Underlying Asset Symbol (e.g. RELIANCE, NIFTY, BANKNIFTY)
     for pos in positions:
         token = str(pos["token"])
         if token in live_prices:
@@ -476,22 +515,42 @@ def get_grouped_positions(user_id=1, live_prices={}):
         pos["pnl"] = round(pnl, 2)
         total_unrealised_pnl += pos["pnl"]
 
-        strat_id = pos["strategy_id"] or "strat_general"
-        if strat_id not in grouped:
-            strat_meta = strategies.get(strat_id, {"name": "General Setup", "color": "#387ed1"})
-            grouped[strat_id] = {
-                "strategy_id": strat_id,
-                "name": strat_meta["name"],
-                "color": strat_meta["color"],
+        sym = pos.get("symbol") or extract_underlying_symbol(pos["name"])
+        pos["symbol"] = sym
+
+        if sym not in grouped:
+            grouped[sym] = {
+                "symbol": sym,
+                "strategy_id": sym,
+                "name": f"{sym} F&O Group",
+                "color": "#ff5722" if sym in ["NIFTY", "BANKNIFTY"] else "#387ed1",
                 "positions": [],
-                "total_pnl": 0.0
+                "total_pnl": 0.0,
+                "has_future": False,
+                "has_pe": False,
+                "has_ce": False,
+                "hedge_label": "Single Leg"
             }
 
-        grouped[strat_id]["positions"].append(pos)
-        grouped[strat_id]["total_pnl"] += pos["pnl"]
+        grouped[sym]["positions"].append(pos)
+        grouped[sym]["total_pnl"] += pos["pnl"]
+        if "FUT" in pos["name"]:
+            grouped[sym]["has_future"] = True
+        if pos["name"].endswith("PE"):
+            grouped[sym]["has_pe"] = True
+        if pos["name"].endswith("CE"):
+            grouped[sym]["has_ce"] = True
 
     for g in grouped.values():
         g["total_pnl"] = round(g["total_pnl"], 2)
+        if g["has_future"] and (g["has_pe"] or g["has_ce"]):
+            g["hedge_label"] = "Hedged Position (Fut + Protective Opt)"
+        elif g["has_pe"] and g["has_ce"]:
+            g["hedge_label"] = "Option Spread (CE + PE)"
+        elif len(g["positions"]) > 1:
+            g["hedge_label"] = f"Multi-Leg ({len(g['positions'])} Legs)"
+        else:
+            g["hedge_label"] = "Single Leg"
 
     hedge_info = calculate_portfolio_hedge_margin(user_id)
     acc = get_user_account(user_id)
@@ -507,6 +566,22 @@ def get_grouped_positions(user_id=1, live_prices={}):
         "account": acc,
         "hedge_info": hedge_info
     }
+
+def exit_symbol_group(symbol, user_id=1, live_prices={}):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM positions WHERE (symbol = ? OR name LIKE ?) AND user_id = ?", (symbol, f"{symbol}%", user_id))
+    pos_list = [dict(p) for p in cursor.fetchall()]
+    conn.close()
+
+    count = 0
+    for pos in pos_list:
+        token = str(pos["token"])
+        ltp = float(live_prices.get(token, pos["ltp"] or pos["avg_price"]))
+        exit_position(pos["id"], abs(pos["qty"]), ltp, exit_reason="GROUP_EXIT", user_id=user_id)
+        count += 1
+
+    return {"success": True, "message": f"Squared off {count} positions under {symbol} group."}
 
 def get_desk_leaderboard(live_prices={}):
     """Returns Desk Monitor Leaderboard for all 18 office traders"""
