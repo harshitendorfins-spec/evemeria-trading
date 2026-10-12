@@ -1,0 +1,2419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Evemeria Virtual F&O - Live Angel One Market Platform</title>
+  <!-- Google Fonts & Tailwind CSS CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            evemeria: {
+              primary: '#ff5722',
+              primaryHover: '#e64a19',
+              blue: '#387ed1',
+              blueHover: '#2b69b3',
+              green: '#4caf50',
+              red: '#df514c',
+              border: '#e5e7eb',
+              card: '#ffffff',
+              bg: '#f8fafc',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #334155;
+      background-color: #f8fafc;
+      -webkit-tap-highlight-color: transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .tick-up {
+      animation: flash-green 0.6s ease-out;
+    }
+    .tick-down {
+      animation: flash-red 0.6s ease-out;
+    }
+    @keyframes flash-green {
+      0% { background-color: rgba(76, 175, 80, 0.25); color: #2e7d32; }
+      100% { background-color: transparent; }
+    }
+    @keyframes flash-red {
+      0% { background-color: rgba(223, 81, 76, 0.25); color: #c62828; }
+      100% { background-color: transparent; }
+    }
+
+    .watchlist-row:hover .row-actions {
+      display: flex !important;
+    }
+    .watchlist-row:hover .row-price-meta {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-slate-50">
+
+  <!-- ================= LOGIN SCREEN OVERLAY ================= -->
+  <div id="login-screen-modal" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Login Top Header -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 text-center border-b border-slate-700">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 mx-auto flex items-center justify-center text-white shadow-lg font-black text-xl mb-3">
+          EV
+        </div>
+        <h2 class="text-xl font-extrabold tracking-tight">Evemeria Virtual F&O</h2>
+        <p class="text-xs text-slate-400 mt-1">100% Real Live Market Trading Terminal</p>
+      </div>
+
+      <!-- Login Form Body -->
+      <div class="p-6 space-y-4 text-xs">
+        <div id="login-error-msg" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg font-semibold text-xs text-center"></div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1.5 text-xs">Trader ID / Admin Username</label>
+          <div class="relative">
+            <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input 
+              type="text" 
+              id="login-username" 
+              placeholder="e.g. TRADER01 or ADMIN" 
+              value="TRADER01"
+              class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue font-mono uppercase text-sm"
+            >
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">Traders: <strong>TRADER01</strong> to <strong>TRADER18</strong> | Admin: <strong>ADMIN</strong></div>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1.5 text-xs">Account Security PIN</label>
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input 
+              type="password" 
+              id="login-pin" 
+              placeholder="PIN" 
+              value="1234"
+              class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue font-mono text-sm tracking-widest"
+            >
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">Default PIN: <strong>1234</strong> (Admin PIN: <strong>9999</strong>)</div>
+        </div>
+
+        <button 
+          onclick="handleLoginSubmit()" 
+          id="btn-login-submit" 
+          class="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-extrabold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2"
+        >
+          <span>Login to Trading Desk</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+
+        <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Fixed ₹1 Crore Capital per Trader</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Strict RMS: Max 1% Per-Trade Risk & 1% Daily MTM Cut</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>SPAN Portfolio Margin Discount for Hedged Futures & Options</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-3 md:px-5 z-20 flex-shrink-0 shadow-sm">
+    
+    <!-- Left: Brand Logo & Indices -->
+    <div class="flex items-center space-x-3 md:space-x-6">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-sm font-black text-sm tracking-tighter">
+          EV
+        </div>
+        <div class="leading-none">
+          <span class="font-extrabold text-base md:text-lg tracking-tight text-gray-900">Evemeria</span>
+          <span class="text-[9px] md:text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded tracking-wide uppercase ml-1">Virtual F&O</span>
+        </div>
+      </div>
+
+      <div class="hidden md:block h-6 w-[1px] bg-gray-200"></div>
+
+      <!-- Live Indices Ticker -->
+      <div class="hidden lg:flex items-center space-x-5 text-xs font-mono">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-gray-500">NIFTY 50</span>
+          <span id="ticker-nifty-ltp" class="font-bold text-gray-800">22,368.05</span>
+          <span id="ticker-nifty-chg" class="text-evemeria-green font-semibold">+112.50 (+0.45%)</span>
+        </div>
+        <div class="h-3.5 w-[1px] bg-gray-200"></div>
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-gray-500">BANKNIFTY</span>
+          <span id="ticker-banknifty-ltp" class="font-bold text-gray-800">54,842.80</span>
+          <span id="ticker-banknifty-chg" class="text-evemeria-red font-semibold">-145.80 (-0.29%)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Live Feed Status & Admin Portal Tab Button (Admin Only) -->
+    <div class="flex items-center space-x-2 md:space-x-3">
+      <!-- Market Status -->
+      <div id="market-status-badge" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+        <span id="market-dot" class="w-2 h-2 rounded-full bg-gray-400"></span>
+        <span id="market-status-text">Market OPEN</span>
+      </div>
+
+      <!-- Admin Master Portal Button (Visible ONLY to Admin) -->
+      <button onclick="switchTab('admin')" id="header-admin-portal-btn" class="hidden items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 transition-colors shadow-sm">
+        <i data-lucide="shield" class="w-3.5 h-3.5 text-purple-700"></i>
+        <span>Admin Console (18 Desks)</span>
+      </button>
+
+      <!-- Angel One Connect Status -->
+      <button onclick="openAngelModal()" id="btn-angel-connect" class="flex items-center space-x-1.5 px-2.5 md:px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-evemeria-blue border border-blue-200 transition-colors">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+        <span id="angel-status-text" class="hidden sm:inline">Angel One API</span>
+      </button>
+    </div>
+
+    <!-- Right: Navigation Tabs & Isolated Profile -->
+    <div class="flex items-center space-x-3 md:space-x-6">
+      
+      <!-- Trader Navigation Tabs -->
+      <nav id="trader-nav-tabs" class="hidden md:flex items-center space-x-5 text-xs font-medium text-gray-600">
+        <button onclick="switchTab('positions')" id="tab-btn-positions" class="hover:text-evemeria-blue py-4 border-b-2 border-evemeria-blue text-evemeria-blue transition-colors flex items-center gap-1.5 font-bold">
+          <span>Positions</span>
+          <span id="badge-positions-count" class="bg-blue-100 text-evemeria-blue text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+        </button>
+        <button onclick="switchTab('orders')" id="tab-btn-orders" class="hover:text-evemeria-blue py-4 border-b-2 border-transparent transition-colors flex items-center gap-1.5">
+          <span>Orders</span>
+          <span id="badge-orders-count" class="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+        </button>
+        <button onclick="switchTab('funds')" id="tab-btn-funds" class="hover:text-evemeria-blue py-4 border-b-2 border-transparent transition-colors">
+          <span>Funds</span>
+        </button>
+        <button onclick="switchTab('ledger')" id="tab-btn-ledger" class="hover:text-evemeria-blue py-4 border-b-2 border-transparent transition-colors flex items-center gap-1">
+          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          <span>My Ledger</span>
+        </button>
+        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="hover:text-evemeria-blue py-4 border-b-2 border-transparent transition-colors">
+          <span>Analytics</span>
+        </button>
+        <button onclick="openStrategyMasterModal()" class="flex items-center gap-1 py-1 px-2.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-colors">
+          <i data-lucide="layers" class="w-3.5 h-3.5 text-evemeria-blue"></i>
+          <span>Setups</span>
+        </button>
+      </nav>
+
+      <div class="hidden md:block h-6 w-[1px] bg-gray-200"></div>
+
+      <!-- Trader Isolated Profile Box (No Switcher, Trader sees ONLY their desk) -->
+      <div class="flex items-center space-x-2">
+        <div class="text-right hidden sm:block">
+          <div id="header-desk-label" class="text-xs font-black text-gray-900 leading-tight">Desk 01</div>
+          <div id="header-available-funds" class="text-[10px] text-evemeria-blue font-mono font-bold">₹1,00,00,000</div>
+        </div>
+        <div id="header-avatar-badge" class="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-extrabold text-xs flex items-center justify-center border border-orange-200 shadow-sm">
+          T01
+        </div>
+        <!-- Logout Button -->
+        <button onclick="handleLogout()" title="Logout of this desk" class="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-1">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN WORKSPACE ================= -->
+  <div class="flex flex-1 overflow-hidden relative">
+
+    <!-- ================= LEFT SIDEBAR: WATCHLIST ================= -->
+    <aside id="sidebar-watchlist" class="w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white flex flex-col flex-shrink-0 z-10 transition-all duration-200">
+      
+      <!-- Search & Add Bar -->
+      <div class="p-2.5 border-b border-gray-200 bg-slate-50 flex items-center gap-2">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5"></i>
+          <input 
+            type="text" 
+            id="search-input" 
+            placeholder="Search reliance, infy, nifty, ce, pe, fut..." 
+            oninput="handleSearch(this.value)"
+            class="w-full text-xs pl-8 pr-7 py-2 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue"
+          >
+          <button onclick="clearSearch()" id="search-clear-btn" class="hidden absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <button onclick="openAddContractModal()" title="Add Custom Strike" class="p-2 text-xs bg-white border border-gray-200 hover:border-evemeria-blue text-gray-600 hover:text-evemeria-blue rounded-md shadow-sm">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Search Results Dropdown Overlay -->
+      <div id="search-results-container" class="hidden flex-1 overflow-y-auto divide-y divide-gray-100 bg-white border-b border-gray-200 shadow-inner"></div>
+
+      <!-- Watchlist Contracts List -->
+      <div id="watchlist-items-container" class="flex-1 overflow-y-auto divide-y divide-gray-100"></div>
+
+      <!-- Watchlist Bottom Footer -->
+      <div class="h-10 border-t border-gray-200 bg-slate-50 flex items-center justify-between px-3 text-xs text-gray-500 flex-shrink-0">
+        <div class="flex items-center space-x-1">
+          <button class="w-6 h-6 rounded bg-white border border-gray-300 text-evemeria-blue font-bold text-xs flex items-center justify-center">1</button>
+          <button class="w-6 h-6 rounded hover:bg-gray-100 text-gray-500 font-medium text-xs flex items-center justify-center">2</button>
+          <button class="w-6 h-6 rounded hover:bg-gray-100 text-gray-500 font-medium text-xs flex items-center justify-center">3</button>
+        </div>
+        <div class="text-[11px] text-gray-400 font-medium font-mono">
+          <span id="watchlist-count">0</span> items
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================= RIGHT CONTENT AREA ================= -->
+    <main id="main-content" class="flex-1 flex flex-col overflow-y-auto bg-slate-50 p-3 sm:p-5 lg:p-6 pb-20 md:pb-6">
+
+      <!-- ================= 1. POSITIONS VIEW ================= -->
+      <div id="view-positions" class="space-y-4">
+        
+        <!-- P&L Banner (Zerodha Kite Style) -->
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-6 sm:gap-10">
+            <div>
+              <div class="text-[10px] md:text-[11px] uppercase tracking-wider text-gray-400 font-bold">My Total P&L (MTM)</div>
+              <div id="pos-total-pnl" class="text-xl sm:text-2xl font-black font-mono text-gray-800">₹0.00</div>
+            </div>
+            <div class="hidden sm:block h-9 w-[1px] bg-gray-200"></div>
+            <div>
+              <div class="text-[10px] md:text-[11px] uppercase tracking-wider text-gray-400 font-bold">Unrealised P&L</div>
+              <div id="pos-unrealised-pnl" class="text-sm sm:text-base font-bold font-mono text-gray-600">₹0.00</div>
+            </div>
+            <div class="hidden sm:block h-9 w-[1px] bg-gray-200"></div>
+            <div>
+              <div class="text-[10px] md:text-[11px] uppercase tracking-wider text-gray-400 font-bold">Realised P&L</div>
+              <div id="pos-realised-pnl" class="text-sm sm:text-base font-bold font-mono text-gray-600">₹0.00</div>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
+            <!-- Hedge Benefit Indicator Pill -->
+            <div id="banner-hedge-benefit-pill" class="hidden px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-1">
+              <i data-lucide="shield" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span id="banner-hedge-benefit-val">Hedge Margin Saved: ₹0</span>
+            </div>
+
+            <!-- Batch Action Button: Exit Selected -->
+            <button onclick="exitSelectedPositions()" id="btn-exit-selected" class="hidden px-3 py-1.5 text-xs font-bold text-white bg-evemeria-primary hover:bg-evemeria-primaryHover rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+              <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+              <span id="label-exit-selected">Exit Selected (0)</span>
+            </button>
+
+            <!-- Exit All Positions Button -->
+            <button onclick="exitAllPositions()" id="btn-exit-all" class="hidden px-3 py-1.5 text-xs font-bold text-rose-600 border border-rose-200 hover:bg-rose-50 rounded-lg transition-colors">
+              Exit All Positions
+            </button>
+          </div>
+        </div>
+
+        <!-- Strategy Grouped Positions Container -->
+        <div id="strategy-grouped-container" class="space-y-4"></div>
+
+        <!-- Empty State if no open positions -->
+        <div id="positions-empty-state" class="bg-white rounded-xl border border-gray-200 shadow-sm py-14 text-center text-gray-400 text-xs">
+          <i data-lucide="layers" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>
+          <div class="text-sm font-bold text-gray-700">No open positions for your desk.</div>
+          <div class="text-xs text-gray-400 mt-1">Select an Option or Future from the watchlist on the left to trade.</div>
+        </div>
+
+        <!-- Closed Positions (Realised Trades History) -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="p-3.5 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide">Closed Trades Log</h3>
+              <span id="closed-count-badge" class="text-[10px] bg-gray-200 px-2 py-0.5 rounded-full font-bold">0 trades</span>
+            </div>
+            <div class="text-[11px] text-gray-400 font-mono">My Trading History</div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-gray-500 font-semibold border-b border-gray-200">
+                <tr>
+                  <th class="py-2.5 px-4">Time</th>
+                  <th class="py-2.5 px-4">Instrument</th>
+                  <th class="py-2.5 px-4">Product</th>
+                  <th class="py-2.5 px-4 text-right">Qty</th>
+                  <th class="py-2.5 px-4 text-right">Buy Avg</th>
+                  <th class="py-2.5 px-4 text-right">Exit Avg</th>
+                  <th class="py-2.5 px-4 text-right">Realised P&L</th>
+                  <th class="py-2.5 px-4 text-center">Reason</th>
+                </tr>
+              </thead>
+              <tbody id="closed-trades-body" class="divide-y divide-gray-100 font-mono"></tbody>
+            </table>
+          </div>
+          <div id="closed-empty-state" class="py-8 text-center text-gray-400 text-xs">
+            No closed trades yet for your desk.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= 2. ORDERS VIEW ================= -->
+      <div id="view-orders" class="hidden space-y-4">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="p-3.5 border-b border-gray-200 flex items-center justify-between bg-slate-50">
+            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide">My Executed Orders & Audit Trail</h3>
+            <span class="text-xs text-gray-400 font-mono">Desk Trades Log</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-gray-500 font-semibold border-b border-gray-200">
+                <tr>
+                  <th class="py-2.5 px-4">Time</th>
+                  <th class="py-2.5 px-4">Type</th>
+                  <th class="py-2.5 px-4">Instrument</th>
+                  <th class="py-2.5 px-4">Product</th>
+                  <th class="py-2.5 px-4 text-right">Qty</th>
+                  <th class="py-2.5 px-4 text-right">Price</th>
+                  <th class="py-2.5 px-4">Strategy</th>
+                  <th class="py-2.5 px-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table-body" class="divide-y divide-gray-100 font-mono"></tbody>
+            </table>
+          </div>
+          <div id="orders-empty-state" class="py-12 text-center text-gray-400 text-xs">
+            <i data-lucide="clipboard-list" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i>
+            <div>No orders placed yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 3. FUNDS VIEW (FIXED ₹1 CRORE CAPITAL - NO RESET FOR TRADERS) ================= -->
+      <div id="view-funds" class="hidden space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- Balance & Margin Card -->
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="wallet" class="w-5 h-5 text-evemeria-blue"></i>
+                <h3 class="font-extrabold text-gray-900 text-sm">Equity & Derivatives (F&O) Margin</h3>
+              </div>
+              <span class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold">
+                Fixed ₹1 Crore Capital
+              </span>
+            </div>
+
+            <div class="space-y-4 text-xs font-mono">
+              <div class="flex justify-between items-center text-sm py-1 font-sans">
+                <span class="text-gray-500 font-medium">Available Cash Margin</span>
+                <span id="funds-available-margin" class="font-bold text-gray-900 text-base font-mono">₹1,00,00,000.00</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-t border-gray-100">
+                <span class="text-gray-500 font-medium font-sans">Used Margin (Blocked)</span>
+                <span id="funds-used-margin" class="font-semibold text-gray-700">₹0.00</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-t border-gray-100">
+                <span class="text-gray-500 font-medium font-sans">Realised P&L</span>
+                <span id="funds-realised-pnl" class="font-semibold text-gray-700">₹0.00</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-t border-gray-100">
+                <span class="text-gray-500 font-medium font-sans">Unrealised (MTM) P&L</span>
+                <span id="funds-unrealised-pnl" class="font-semibold text-gray-700">₹0.00</span>
+              </div>
+              <div class="flex justify-between items-center py-2.5 border-t-2 border-gray-200 text-sm font-sans">
+                <span class="font-bold text-gray-800">Total Account Net Worth</span>
+                <span id="funds-total-balance" class="font-extrabold text-evemeria-blue text-base font-mono">₹1,00,00,000.00</span>
+              </div>
+            </div>
+
+            <!-- Portfolio Hedge Margin Benefit Display -->
+            <div class="p-4 bg-emerald-50/70 rounded-xl border border-emerald-200 space-y-2 text-xs">
+              <div class="flex items-center justify-between font-bold text-emerald-900 font-sans">
+                <span class="flex items-center gap-1.5">
+                  <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+                  Portfolio Hedge Benefit (SPAN Margin Discount)
+                </span>
+                <span id="funds-hedge-discount-badge" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[11px] font-mono">₹0.00 Saved</span>
+              </div>
+              <div class="text-[11px] text-emerald-700 leading-relaxed font-sans">
+                Offsets like <strong>Long Future + Long Put</strong> or <strong>Credit Spreads</strong> automatically receive ~60% SPAN margin benefit.
+              </div>
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-200/60 font-mono text-[11px]">
+                <div>
+                  <span class="text-emerald-700 block text-[10px] font-sans">Naked Margin (Without Hedge):</span>
+                  <span id="funds-naked-margin" class="font-bold text-emerald-900">₹0.00</span>
+                </div>
+                <div>
+                  <span class="text-emerald-700 block text-[10px] font-sans">Net Blocked Margin:</span>
+                  <span id="funds-effective-margin" class="font-bold text-emerald-900">₹0.00</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- NOTE: Traders CANNOT reset or add funds -->
+            <div class="pt-2 border-t border-gray-100 text-center text-[11px] text-gray-400">
+              Virtual capital is locked at ₹1,00,00,000. Traders cannot reset or add funds.
+            </div>
+          </div>
+
+          <!-- RMS Policies Card -->
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+            <div class="flex items-center space-x-2 pb-3 border-b border-gray-100">
+              <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-500"></i>
+              <h3 class="font-extrabold text-gray-900 text-sm">Trading Desk RMS Policies</h3>
+            </div>
+
+            <div class="space-y-3.5 text-xs text-gray-600 leading-relaxed">
+              <div class="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200">
+                <div class="flex items-center justify-between mb-1">
+                  <strong class="text-amber-900 text-xs font-bold">1. Max 1% Risk Per Trade (₹1,00,000):</strong>
+                  <span class="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded font-bold">ENFORCED</span>
+                </div>
+                <p class="text-[11px] text-amber-800">
+                  Stoploss risk cannot exceed ₹1,00,000 on any single trade. If potential loss exceeds ₹1 Lakh, RMS will immediately reject the order.
+                </p>
+              </div>
+
+              <div class="p-3.5 bg-rose-50/70 rounded-xl border border-rose-200">
+                <div class="flex items-center justify-between mb-1">
+                  <strong class="text-rose-900 text-xs font-bold">2. Daily 1% Loss Limit (MTM Auto Square-off):</strong>
+                  <span class="text-[10px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded font-bold">AUTO CUT</span>
+                </div>
+                <p class="text-[11px] text-rose-800">
+                  If total daily intraday loss reaches -₹1,00,000 (-1%), the system will automatically square off all MIS trades and lock your desk for the day. Only Admin can unlock.
+                </p>
+              </div>
+
+              <div class="p-3.5 bg-blue-50/70 rounded-xl border border-blue-200">
+                <div class="flex items-center justify-between mb-1">
+                  <strong class="text-blue-900 text-xs font-bold">3. Multi-Device & Mobile Access:</strong>
+                  <span class="text-[10px] bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded font-bold">ENABLED</span>
+                </div>
+                <p class="text-[11px] text-blue-800">
+                  Access from desktop or mobile phones on the local network. Sub-millisecond tick rate enabled via Angel One SmartAPI.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 4. CONSOLE / LEDGER VIEW (MY STATEMENT ONLY) ================= -->
+      <div id="view-ledger" class="hidden space-y-4">
+        
+        <!-- Ledger Summary Header -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Opening Capital</div>
+            <div class="text-xl font-black font-mono text-gray-900 mt-1">₹1,00,00,000.00</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Realised P&L</div>
+            <div id="ledger-net-pnl" class="text-xl font-black font-mono text-gray-900 mt-1">₹0.00</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Current Ledger Balance</div>
+            <div id="ledger-current-balance" class="text-xl font-black font-mono text-evemeria-blue mt-1">₹1,00,00,000.00</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Voucher Entries</div>
+            <div id="ledger-entries-count" class="text-xl font-black font-mono text-gray-700 mt-1">1</div>
+          </div>
+        </div>
+
+        <!-- Statement Table -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="book-open" class="w-4 h-4 text-evemeria-blue"></i>
+              <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wide">My Financial Ledger Statement</h3>
+            </div>
+            <button onclick="downloadLedgerCSV()" class="px-3 py-1 bg-white hover:bg-gray-100 border border-gray-200 rounded text-xs font-semibold text-gray-700 flex items-center gap-1 shadow-sm">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Export Statement</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="bg-slate-100 text-gray-500 font-semibold border-b border-gray-200 font-sans">
+                <tr>
+                  <th class="py-2.5 px-4">Date</th>
+                  <th class="py-2.5 px-4">Time</th>
+                  <th class="py-2.5 px-6">Particulars</th>
+                  <th class="py-2.5 px-3 text-center">Voucher</th>
+                  <th class="py-2.5 px-4 text-right">Debit (Dr)</th>
+                  <th class="py-2.5 px-4 text-right">Credit (Cr)</th>
+                  <th class="py-2.5 px-4 text-right font-bold">Net Balance</th>
+                </tr>
+              </thead>
+              <tbody id="ledger-table-body" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 5. DASHBOARD VIEW ================= -->
+      <div id="view-dashboard" class="hidden space-y-4">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Total Trades Taken</div>
+            <div id="dash-total-trades" class="text-2xl font-black font-mono text-gray-800 mt-1">0</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Winning Trades</div>
+            <div id="dash-win-trades" class="text-2xl font-black font-mono text-evemeria-green mt-1">0</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Losing Trades</div>
+            <div id="dash-loss-trades" class="text-2xl font-black font-mono text-evemeria-red mt-1">0</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Desk Win Rate</div>
+            <div id="dash-win-rate" class="text-2xl font-black font-mono text-evemeria-blue mt-1">0%</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+          <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-4">Account Equity Growth</h3>
+          <div class="h-64">
+            <canvas id="equityChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 6. ADMIN MASTER PORTAL VIEW (VISIBLE TO ADMIN ONLY) ================= -->
+      <div id="view-admin" class="hidden space-y-5">
+        
+        <!-- Admin Overview Banner -->
+        <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-0.5 bg-purple-500/30 text-purple-200 border border-purple-400/40 rounded-full text-[10px] font-extrabold uppercase tracking-wider">Master Supervisory Console</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            </div>
+            <h2 class="text-2xl font-black tracking-tight mt-1">Office Desks Control Center (18 Traders)</h2>
+            <p class="text-xs text-purple-200/80 mt-0.5">Real-time MTM monitoring, ledger inspection, RMS controls, and capital administration.</p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <button onclick="refreshAdminDeskMonitor()" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>Refresh Desks</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Admin Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Total Office Net MTM</div>
+            <div id="admin-total-office-pnl" class="text-2xl font-black font-mono text-gray-900 mt-1">₹0.00</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Total Open Positions</div>
+            <div id="admin-total-open-pos" class="text-2xl font-black font-mono text-evemeria-blue mt-1">0</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">Active Trading Desks</div>
+            <div id="admin-active-desks-count" class="text-2xl font-black font-mono text-evemeria-green mt-1">18 / 18</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div class="text-[10px] text-gray-400 font-bold uppercase">RMS Locked Desks</div>
+            <div id="admin-locked-desks-count" class="text-2xl font-black font-mono text-evemeria-red mt-1">0</div>
+          </div>
+        </div>
+
+        <!-- All 18 Desks Master Table -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="monitor" class="w-4 h-4 text-purple-700"></i>
+              <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wide">Live Desk Matrix (18 Traders)</h3>
+            </div>
+            <span class="text-xs text-gray-400 font-mono">Auto refreshed tick-by-tick</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="bg-slate-100 text-gray-600 font-bold border-b border-gray-200 font-sans">
+                <tr>
+                  <th class="py-3 px-3 text-center">Desk #</th>
+                  <th class="py-3 px-4">Trader Code</th>
+                  <th class="py-3 px-3 text-center">Open Pos</th>
+                  <th class="py-3 px-4 text-right">Unrealised</th>
+                  <th class="py-3 px-4 text-right">Realised</th>
+                  <th class="py-3 px-4 text-right font-bold">Net Day P&L</th>
+                  <th class="py-3 px-3 text-center">RMS Status</th>
+                  <th class="py-3 px-4 text-center font-sans">Supervisory Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-desks-table-body" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================= MOBILE BOTTOM NAVIGATION BAR ================= -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-white border-t border-gray-200 flex items-center justify-around z-30 px-1 shadow-lg text-[10px] font-semibold text-gray-600">
+    <button onclick="mobileSwitchTab('watchlist')" id="mob-tab-watchlist" class="flex flex-col items-center justify-center py-1 w-full text-evemeria-blue">
+      <i data-lucide="list" class="w-5 h-5"></i>
+      <span class="mt-0.5">Watchlist</span>
+    </button>
+    <button onclick="mobileSwitchTab('positions')" id="mob-tab-positions" class="flex flex-col items-center justify-center py-1 w-full hover:text-evemeria-blue">
+      <i data-lucide="layers" class="w-5 h-5"></i>
+      <span class="mt-0.5">Positions</span>
+    </button>
+    <button onclick="mobileSwitchTab('orders')" id="mob-tab-orders" class="flex flex-col items-center justify-center py-1 w-full hover:text-evemeria-blue">
+      <i data-lucide="check-square" class="w-5 h-5"></i>
+      <span class="mt-0.5">Orders</span>
+    </button>
+    <button onclick="mobileSwitchTab('funds')" id="mob-tab-funds" class="flex flex-col items-center justify-center py-1 w-full hover:text-evemeria-blue">
+      <i data-lucide="wallet" class="w-5 h-5"></i>
+      <span class="mt-0.5">Funds</span>
+    </button>
+    <button onclick="mobileSwitchTab('ledger')" id="mob-tab-ledger" class="flex flex-col items-center justify-center py-1 w-full hover:text-evemeria-blue">
+      <i data-lucide="book-open" class="w-5 h-5"></i>
+      <span class="mt-0.5">Ledger</span>
+    </button>
+  </nav>
+
+  <!-- ================= ORDER MODAL ================= -->
+  <div id="order-modal-backdrop" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+    <div id="order-modal" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 transform transition-all">
+      
+      <!-- Modal Header -->
+      <div id="order-modal-header" class="bg-evemeria-blue text-white px-5 py-3.5 flex items-center justify-between transition-colors">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="modal-order-action-label" class="font-extrabold text-sm tracking-wide">BUY</span>
+            <span id="modal-instrument-name" class="font-bold text-sm">NIFTY 24 OCT 25000 CE</span>
+            <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-bold">NFO</span>
+          </div>
+          <div class="text-[11px] text-white/90 mt-0.5 font-mono">
+            Live LTP: ₹<span id="modal-instrument-ltp">124.50</span>
+          </div>
+        </div>
+
+        <div class="flex items-center bg-black/25 p-0.5 rounded-full text-xs font-bold">
+          <button type="button" onclick="setOrderAction('BUY')" id="toggle-btn-buy" class="px-3.5 py-1 rounded-full bg-white text-evemeria-blue">BUY</button>
+          <button type="button" onclick="setOrderAction('SELL')" id="toggle-btn-sell" class="px-3.5 py-1 rounded-full text-white hover:text-white/80">SELL</button>
+        </div>
+      </div>
+
+      <!-- Modal Body Form -->
+      <div class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block text-gray-700 font-bold mb-1">Trading Setup / Strategy</label>
+          <select id="modal-strategy-select" class="w-full border border-gray-300 rounded-lg py-2 px-3 bg-white text-gray-800 font-semibold focus:outline-none focus:border-evemeria-blue"></select>
+        </div>
+
+        <div class="flex items-center space-x-6 border-b border-gray-100 pb-3">
+          <label class="flex items-center space-x-2 cursor-pointer font-semibold text-gray-700">
+            <input type="radio" name="product-type" value="MIS" checked onchange="toggleMisBracketOptions(true)" class="text-evemeria-blue focus:ring-0">
+            <span>Intraday (MIS)</span>
+          </label>
+          <label class="flex items-center space-x-2 cursor-pointer font-semibold text-gray-700">
+            <input type="radio" name="product-type" value="NRML" onchange="toggleMisBracketOptions(false)" class="text-evemeria-blue focus:ring-0">
+            <span>Carry Forward (NRML)</span>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-gray-600 font-semibold mb-1">
+              Quantity <span id="modal-lotsize-hint" class="text-[10px] text-gray-400 font-mono">(Lot: 25)</span>
+            </label>
+            <div class="flex items-center border border-gray-300 rounded-lg focus-within:border-evemeria-blue">
+              <button type="button" onclick="stepQty(-1)" class="px-3 py-2 text-gray-500 hover:bg-gray-100 font-bold">-</button>
+              <input 
+                type="number" 
+                id="modal-qty-input" 
+                value="25" 
+                min="25" 
+                step="25" 
+                oninput="updateMarginEstimate()"
+                class="w-full text-center py-2 focus:outline-none text-gray-800 font-bold font-mono"
+              >
+              <button type="button" onclick="stepQty(1)" class="px-3 py-2 text-gray-500 hover:bg-gray-100 font-bold">+</button>
+            </div>
+            <div id="modal-lots-count" class="text-[10px] text-gray-400 mt-0.5 text-center font-mono">1 Lot</div>
+          </div>
+
+          <div>
+            <label class="block text-gray-600 font-semibold mb-1">Execution Price</label>
+            <input 
+              type="text" 
+              id="modal-price-input" 
+              disabled 
+              value="Market Order (LTP)" 
+              class="w-full border border-gray-300 rounded-lg py-2 px-3 bg-gray-50 text-gray-500 font-semibold focus:outline-none"
+            >
+            <div class="text-[10px] text-gray-400 mt-0.5 text-center">Instant Live Market Fill</div>
+          </div>
+        </div>
+
+        <!-- Stoploss & Target (for MIS) -->
+        <div id="mis-bracket-section" class="border border-blue-100 bg-blue-50/50 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-gray-700 text-xs flex items-center gap-1.5">
+              <i data-lucide="crosshair" class="w-4 h-4 text-evemeria-blue"></i>
+              <span>Stoploss & Target (Auto Trigger)</span>
+            </span>
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-evemeria-blue">
+              <input type="checkbox" id="bracket-enable-chk" onchange="toggleBracketInputs(this.checked)" class="rounded text-evemeria-blue focus:ring-0">
+              <span>Enable</span>
+            </label>
+          </div>
+
+          <div id="bracket-inputs-container" class="hidden grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-gray-600 text-[10px] font-semibold mb-1">Stoploss Price (₹)</label>
+              <input 
+                type="number" 
+                id="modal-sl-input" 
+                step="0.05" 
+                placeholder="eg: 110.00" 
+                oninput="checkRmsRisk()"
+                class="w-full border border-gray-300 rounded-lg py-1.5 px-3 bg-white text-gray-800 font-bold font-mono text-xs focus:outline-none focus:border-red-400"
+              >
+            </div>
+            <div>
+              <label class="block text-gray-600 text-[10px] font-semibold mb-1">Target Price (₹)</label>
+              <input 
+                type="number" 
+                id="modal-target-input" 
+                step="0.05" 
+                placeholder="eg: 160.00" 
+                class="w-full border border-gray-300 rounded-lg py-1.5 px-3 bg-white text-gray-800 font-bold font-mono text-xs focus:outline-none focus:border-green-400"
+              >
+            </div>
+          </div>
+
+          <div id="rms-risk-indicator" class="hidden pt-1 text-[11px] font-mono">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Per-Trade SL Risk:</span>
+              <span id="rms-risk-amount" class="font-bold text-gray-800">₹0.00 (Max: ₹1,00,000)</span>
+            </div>
+            <div id="rms-risk-warning" class="hidden text-rose-600 font-sans font-bold text-[10px] mt-0.5">
+              ⚠️ Warning: Risk exceeds 1% limit. RMS will reject this order!
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-gray-200 space-y-1 text-xs font-mono">
+          <div class="flex justify-between items-center text-gray-700 font-sans">
+            <span class="font-semibold">Required Margin:</span>
+            <span id="modal-margin-required" class="font-extrabold text-gray-900 font-mono">₹3,112.50</span>
+          </div>
+          <div class="flex justify-between items-center text-gray-500 text-[11px] font-sans">
+            <span>Desk Available Margin:</span>
+            <span id="modal-margin-available" class="font-semibold text-gray-700 font-mono">₹1,00,00,000.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 px-5 py-3 border-t border-gray-200 flex items-center justify-between">
+        <button type="button" onclick="closeOrderModal()" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg text-xs font-semibold transition-colors">
+          Cancel
+        </button>
+        <button type="button" id="modal-submit-btn" onclick="submitOrder()" class="px-6 py-2 bg-evemeria-blue hover:bg-evemeria-blueHover text-white rounded-lg text-xs font-bold tracking-wide shadow-md transition-colors">
+          BUY ORDER
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= ADMIN INSPECT TRADER LEDGER MODAL ================= -->
+  <div id="admin-trader-ledger-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
+      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="atl-modal-desk-badge" class="px-2 py-0.5 bg-orange-600 rounded text-[11px] font-extrabold">Desk 01</span>
+            <h3 id="atl-modal-trader-title" class="font-extrabold text-sm">TRADER01 Financial Statement</h3>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-0.5">Full audit trail of bookings, debits, credits, and capital balance.</p>
+        </div>
+        <button onclick="closeAdminTraderLedgerModal()" class="text-gray-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="p-4 flex-1 overflow-y-auto">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-100 text-gray-600 font-bold border-b border-gray-200 font-sans">
+              <tr>
+                <th class="py-2.5 px-4">Date</th>
+                <th class="py-2.5 px-4">Time</th>
+                <th class="py-2.5 px-6">Particulars</th>
+                <th class="py-2.5 px-3 text-center">Voucher</th>
+                <th class="py-2.5 px-4 text-right">Debit (Dr)</th>
+                <th class="py-2.5 px-4 text-right">Credit (Cr)</th>
+                <th class="py-2.5 px-4 text-right font-bold">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="atl-table-body" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 px-5 py-3 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500 font-sans">
+        <span id="atl-modal-balance-summary" class="font-mono font-bold text-gray-800">Current Balance: ₹1,00,00,000.00</span>
+        <button onclick="closeAdminTraderLedgerModal()" class="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-semibold text-xs">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PARTIAL & FULL QUANTITY EXIT MODAL ================= -->
+  <div id="partial-exit-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div>
+          <div class="font-extrabold text-sm">Square Off Position</div>
+          <div id="pe-instrument-name" class="text-xs text-gray-300 font-mono">NIFTY 24 OCT 25000 CE</div>
+        </div>
+        <button onclick="closePartialExitModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs font-mono">
+        <div class="bg-slate-50 p-3 rounded-xl border border-gray-200 flex justify-between items-center">
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold font-sans">Open Quantity</div>
+            <div id="pe-total-qty" class="text-base font-extrabold text-gray-800">100 Qty</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] text-gray-400 uppercase font-bold font-sans">Current LTP</div>
+            <div id="pe-current-ltp" class="text-base font-extrabold text-evemeria-blue">₹142.50</div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-gray-700 font-bold mb-1.5 font-sans">Choose Percentage:</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button onclick="setExitFraction(0.25)" class="py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-evemeria-blue border border-gray-200 rounded-lg font-bold">25%</button>
+            <button onclick="setExitFraction(0.50)" class="py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-evemeria-blue border border-gray-200 rounded-lg font-bold">50%</button>
+            <button onclick="setExitFraction(0.75)" class="py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-evemeria-blue border border-gray-200 rounded-lg font-bold">75%</button>
+            <button onclick="setExitFraction(1.00)" class="py-1.5 bg-blue-100 text-evemeria-blue border border-blue-300 rounded-lg font-bold">100%</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-gray-700 font-bold mb-1 font-sans">Exit Quantity:</label>
+          <div class="flex items-center border border-gray-300 rounded-lg focus-within:border-evemeria-blue">
+            <button type="button" onclick="stepExitQty(-1)" class="px-3 py-2 text-gray-600 hover:bg-gray-100 font-bold">-</button>
+            <input type="number" id="pe-qty-input" class="w-full text-center py-2 text-gray-800 font-bold focus:outline-none" oninput="updateExitEstimate()">
+            <button type="button" onclick="stepExitQty(1)" class="px-3 py-2 text-gray-600 hover:bg-gray-100 font-bold">+</button>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center text-xs pt-1 border-t border-gray-100 font-sans">
+          <span class="text-gray-500 font-semibold">Estimated P&L:</span>
+          <span id="pe-estimated-pnl" class="font-extrabold text-gray-800 font-mono">₹0.00</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 px-5 py-3 border-t border-gray-200 flex items-center justify-between">
+        <button onclick="closePartialExitModal()" class="px-4 py-2 border border-gray-300 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-semibold">Cancel</button>
+        <button onclick="confirmPartialExit()" class="px-6 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-md">Confirm Exit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= STRATEGY MASTER MODAL ================= -->
+  <div id="strategy-master-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="layers" class="w-4 h-4 text-evemeria-blue"></i>
+          <h3 class="font-extrabold text-sm">Strategy & Setup Master</h3>
+        </div>
+        <button onclick="closeStrategyMasterModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-gray-200 space-y-2.5">
+          <div class="font-bold text-gray-700">Create New Strategy / Setup</div>
+          <div class="grid grid-cols-3 gap-2">
+            <input type="text" id="new-strat-name" placeholder="Setup Name" class="col-span-2 border border-gray-300 rounded-lg p-2 focus:border-evemeria-blue">
+            <input type="color" id="new-strat-color" value="#387ed1" class="h-9 w-full border border-gray-300 rounded-lg cursor-pointer p-0.5">
+          </div>
+          <input type="text" id="new-strat-desc" placeholder="Brief notes (e.g. 5-min CPR Breakout)" class="w-full border border-gray-300 rounded-lg p-2 focus:border-evemeria-blue">
+          <button onclick="createNewStrategy()" class="w-full py-2 bg-evemeria-blue hover:bg-evemeria-blueHover text-white rounded-lg font-bold shadow transition-colors">+ Add Setup</button>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-700 mb-2">Existing Setups</div>
+          <div id="strategy-list-container" class="space-y-1.5 max-h-48 overflow-y-auto divide-y divide-gray-100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ANGEL ONE API LOGIN MODAL ================= -->
+  <div id="angel-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+          <span class="font-extrabold text-sm">Angel One SmartAPI Connect</span>
+        </div>
+        <button onclick="closeAngelModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <div class="p-5 space-y-3 text-xs">
+        <div class="text-[11px] text-gray-500 bg-blue-50 p-2.5 rounded-lg border border-blue-100">
+          Enter credentials once. All 18 desks stream live ticks simultaneously through this single feed.
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-1">API Key</label>
+          <input type="text" id="angel-api-key" placeholder="API Key" class="w-full border border-gray-300 rounded-lg p-2 focus:border-evemeria-blue font-mono">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-1">Client ID</label>
+          <input type="text" id="angel-client-id" placeholder="Client ID (e.g. AAAH964977)" class="w-full border border-gray-300 rounded-lg p-2 focus:border-evemeria-blue font-mono">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-1">Account PIN</label>
+          <input type="password" id="angel-pin" placeholder="PIN / MPIN" class="w-full border border-gray-300 rounded-lg p-2 focus:border-evemeria-blue font-mono">
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-1">TOTP Secret</label>
+          <input type="text" id="angel-totp" placeholder="Base32 TOTP Key" class="w-full border border-gray-300 rounded-lg p-2 focus:border-evemeria-blue font-mono">
+        </div>
+      </div>
+
+      <div class="bg-slate-50 px-5 py-3 border-t border-gray-200 flex justify-between">
+        <button onclick="closeAngelModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 font-semibold">Cancel</button>
+        <button onclick="saveAndConnectAngel()" id="btn-save-angel" class="px-5 py-2 bg-evemeria-blue hover:bg-evemeria-blueHover text-white rounded-lg font-bold shadow">Connect Live Market</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ADD CONTRACT MODAL ================= -->
+  <div id="add-contract-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-gray-200 space-y-4 text-xs">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+        <h3 class="font-extrabold text-sm text-gray-900">Add Option / Future to Watchlist</h3>
+        <button onclick="closeAddContractModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div>
+        <label class="block text-gray-600 font-semibold mb-1">Underlying Symbol</label>
+        <select id="custom-symbol" class="w-full border border-gray-200 rounded-lg p-2 focus:border-evemeria-blue font-bold">
+          <option value="NIFTY">NIFTY 50</option>
+          <option value="BANKNIFTY">BANKNIFTY</option>
+          <option value="RELIANCE">RELIANCE</option>
+          <option value="HDFCBANK">HDFCBANK</option>
+          <option value="INFY">INFY</option>
+          <option value="TCS">TCS</option>
+          <option value="SBIN">SBIN</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-600 font-semibold mb-1">Contract Type</label>
+        <select id="custom-type" class="w-full border border-gray-200 rounded-lg p-2 focus:border-evemeria-blue font-bold">
+          <option value="CE">Call Option (CE)</option>
+          <option value="PE">Put Option (PE)</option>
+          <option value="FUT">Future (FUT)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-600 font-semibold mb-1">Strike Price (For Options)</label>
+        <input type="number" id="custom-strike" value="22500" step="50" class="w-full border border-gray-200 rounded-lg p-2 focus:border-evemeria-blue font-mono font-bold">
+      </div>
+      <div class="pt-2 flex justify-end gap-2">
+        <button onclick="closeAddContractModal()" class="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 font-semibold">Cancel</button>
+        <button onclick="addCustomContract()" class="px-4 py-1.5 bg-evemeria-blue text-white rounded-lg font-bold shadow">Add to Watchlist</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-16 md:bottom-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8080' : '';
+
+    // Active User (Null until logged in)
+    let currentUser = null;
+
+    // Restore login session from localStorage
+    try {
+      const saved = localStorage.getItem('evemeria_active_user');
+      if (saved) {
+        currentUser = JSON.parse(saved);
+      }
+    } catch(e) {}
+
+    let state = {
+      watchlist: [],
+      strategies: [],
+      groupedPositions: [],
+      selectedPositions: new Set(),
+      closedTrades: [],
+      orders: [],
+      ledger: [],
+      account: {
+        total_capital: 10000000.0,
+        available_margin: 10000000.0,
+        used_margin: 0.0,
+        realised_pnl: 0.0,
+        unrealised_pnl: 0.0,
+        net_worth: 10000000.0
+      },
+      hedgeInfo: {
+        total_margin: 0.0,
+        naked_margin: 0.0,
+        hedge_benefit: 0.0
+      },
+      marketStatus: { is_open: false, status: 'CLOSED' },
+      activeOrderModal: { instrument: null, action: 'BUY', product: 'MIS' },
+      activePartialExit: { position: null, maxQty: 0, lotSize: 25, currentLtp: 0 },
+      currentTab: 'positions',
+      adminDesksData: []
+    };
+
+    /* Audio Chime */
+    function playOrderDing() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch (e) {}
+    }
+
+    /* API Fetch Helpers */
+    async function apiGet(endpoint) {
+      try {
+        const res = await fetch(API_BASE + endpoint);
+        return await res.json();
+      } catch (e) {
+        console.error("API GET Error:", e);
+        return null;
+      }
+    }
+
+    async function apiPost(endpoint, data) {
+      try {
+        const res = await fetch(API_BASE + endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        return await res.json();
+      } catch (e) {
+        console.error("API POST Error:", e);
+        return null;
+      }
+    }
+
+    /* ================= LOGIN & AUTHENTICATION ================= */
+    async function handleLoginSubmit() {
+      const usernameInput = document.getElementById('login-username').value.trim();
+      const pinInput = document.getElementById('login-pin').value.trim();
+      const errEl = document.getElementById('login-error-msg');
+      const btn = document.getElementById('btn-login-submit');
+
+      errEl.classList.add('hidden');
+      if (!usernameInput || !pinInput) {
+        errEl.textContent = 'Please enter both User ID and PIN.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>Verifying...</span>`;
+
+      try {
+        const res = await apiPost('/api/auth/login', { username: usernameInput, pin: pinInput });
+        if (res && res.success) {
+          currentUser = res.user;
+          localStorage.setItem('evemeria_active_user', JSON.stringify(currentUser));
+          document.getElementById('login-screen-modal').classList.add('hidden');
+          setupUserSessionUI();
+          await loadData();
+          showToast(`Welcome ${currentUser.display_name}!`, 'success');
+        } else {
+          errEl.textContent = res?.message || 'Invalid User ID or PIN.';
+          errEl.classList.remove('hidden');
+        }
+      } catch (e) {
+        errEl.textContent = 'Connection error: ' + e.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Login to Trading Desk</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        lucide.createIcons();
+      }
+    }
+
+    function handleLogout() {
+      if (confirm('Are you sure you want to log out of this trading desk?')) {
+        localStorage.removeItem('evemeria_active_user');
+        currentUser = null;
+        document.getElementById('login-screen-modal').classList.remove('hidden');
+        document.getElementById('login-error-msg').classList.add('hidden');
+      }
+    }
+
+    function setupUserSessionUI() {
+      if (!currentUser) {
+        document.getElementById('login-screen-modal').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('login-screen-modal').classList.add('hidden');
+
+      const deskEl = document.getElementById('header-desk-label');
+      const avatarEl = document.getElementById('header-avatar-badge');
+      const adminBtn = document.getElementById('header-admin-portal-btn');
+      const traderNav = document.getElementById('trader-nav-tabs');
+
+      if (currentUser.role === 'admin') {
+        // Admin View Setup
+        if (deskEl) deskEl.textContent = 'MASTER ADMIN';
+        if (avatarEl) {
+          avatarEl.textContent = 'AD';
+          avatarEl.className = 'w-8 h-8 rounded-full bg-purple-600 text-white font-extrabold text-xs flex items-center justify-center border border-purple-400 shadow-md';
+        }
+        if (adminBtn) adminBtn.classList.remove('hidden');
+        switchTab('admin');
+      } else {
+        // Trader Isolated View Setup
+        if (deskEl) deskEl.textContent = `Desk ${String(currentUser.desk_no).padStart(2, '0')} (${currentUser.username})`;
+        if (avatarEl) {
+          avatarEl.textContent = `T${String(currentUser.desk_no).padStart(2, '0')}`;
+          avatarEl.className = 'w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-extrabold text-xs flex items-center justify-center border border-orange-200 shadow-sm';
+        }
+        if (adminBtn) adminBtn.classList.add('hidden');
+        switchTab('positions');
+      }
+    }
+
+    /* Load Data */
+    async function loadData() {
+      if (!currentUser) return;
+
+      // 1. Status
+      const status = await apiGet('/api/status');
+      if (status) {
+        state.marketStatus = status;
+        updateMarketStatusHeader();
+      }
+
+      // 2. Watchlist & Indices
+      await fetchLiveWatchlist();
+
+      // If Admin, load all 18 desks monitor
+      if (currentUser.role === 'admin') {
+        await refreshAdminDeskMonitor();
+      }
+
+      // 3. User Specific Strategies
+      const strats = await apiGet(`/api/strategies?user_id=${currentUser.id}`);
+      if (strats) {
+        state.strategies = strats;
+        renderStrategyOptions();
+        renderStrategyMasterList();
+      }
+
+      // 4. Positions & Funds for this specific user
+      await fetchGroupedPositions();
+
+      // 5. Orders for this specific user
+      const orders = await apiGet(`/api/orders?user_id=${currentUser.id}`);
+      if (orders) {
+        state.orders = orders;
+        renderOrders();
+      }
+
+      // 6. Closed Trades History for this specific user
+      const hist = await apiGet(`/api/history?user_id=${currentUser.id}`);
+      if (hist) {
+        state.closedTrades = hist;
+        renderClosedTrades();
+      }
+
+      // 7. Ledger Statement for this specific user
+      const ledger = await apiGet(`/api/ledger?user_id=${currentUser.id}`);
+      if (ledger) {
+        state.ledger = ledger;
+        renderLedgerStatement();
+      }
+    }
+
+    async function fetchLiveWatchlist() {
+      const res = await apiGet('/api/watchlist');
+      if (res) {
+        if (res.indices) {
+          const n = res.indices.NIFTY;
+          const bn = res.indices.BANKNIFTY;
+          if (n && document.getElementById('ticker-nifty-ltp')) {
+            document.getElementById('ticker-nifty-ltp').textContent = n.ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            const nChgEl = document.getElementById('ticker-nifty-chg');
+            const nPos = n.chg >= 0;
+            nChgEl.textContent = `${nPos ? '+' : ''}${n.chg.toFixed(2)} (${nPos ? '+' : ''}${n.chg_pct}%)`;
+            nChgEl.className = `${nPos ? 'text-evemeria-green' : 'text-evemeria-red'} font-semibold font-mono`;
+          }
+          if (bn && document.getElementById('ticker-banknifty-ltp')) {
+            document.getElementById('ticker-banknifty-ltp').textContent = bn.ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            const bnChgEl = document.getElementById('ticker-banknifty-chg');
+            const bnPos = bn.chg >= 0;
+            bnChgEl.textContent = `${bnPos ? '+' : ''}${bn.chg.toFixed(2)} (${bnPos ? '+' : ''}${bn.chg_pct}%)`;
+            bnChgEl.className = `${bnPos ? 'text-evemeria-green' : 'text-evemeria-red'} font-semibold font-mono`;
+          }
+        }
+        if (res.watchlist && res.watchlist.length > 0) {
+          state.watchlist = res.watchlist;
+          renderWatchlist();
+        }
+      }
+    }
+
+    async function fetchGroupedPositions() {
+      if (!currentUser) return;
+      const res = await apiGet(`/api/positions?user_id=${currentUser.id}`);
+      if (res) {
+        state.groupedPositions = res.groups || [];
+        if (res.account) {
+          state.account = res.account;
+        }
+        if (res.hedge_info) {
+          state.hedgeInfo = res.hedge_info;
+        }
+        updateFundsView();
+        renderGroupedPositions();
+      }
+    }
+
+    /* Watchlist & Search */
+    async function handleSearch(query) {
+      const resultsContainer = document.getElementById('search-results-container');
+      const clearBtn = document.getElementById('search-clear-btn');
+      if (!query.trim()) {
+        resultsContainer.classList.add('hidden');
+        clearBtn.classList.add('hidden');
+        return;
+      }
+      clearBtn.classList.remove('hidden');
+      resultsContainer.classList.remove('hidden');
+
+      const matches = await apiGet('/api/search?q=' + encodeURIComponent(query.trim()));
+      resultsContainer.innerHTML = '';
+      if (!matches || matches.length === 0) {
+        resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-gray-400">No matching contracts found.</div>`;
+        return;
+      }
+
+      matches.forEach(m => {
+        const isAdded = state.watchlist.some(w => String(w.token) === String(m.token));
+        const div = document.createElement('div');
+        div.className = 'p-2.5 hover:bg-slate-50 flex items-center justify-between text-xs border-b border-gray-100';
+        div.innerHTML = `
+          <div>
+            <div class="font-bold text-gray-800">${m.name}</div>
+            <div class="text-[10px] text-gray-400 font-mono">${m.exchange} • Lot ${m.lot} • Expiry: ${m.expiry || ''}</div>
+          </div>
+          ${isAdded ? 
+            `<span class="text-[10px] text-gray-400 font-bold px-2 py-1 bg-gray-100 rounded">Added</span>` : 
+            `<button onclick="addContractFromSearch('${m.token}', '${m.symbol}', '${m.name}', '${m.type}', ${m.strike}, ${m.lot})" class="px-2.5 py-1 bg-evemeria-blue text-white rounded text-[11px] font-bold hover:bg-evemeria-blueHover shadow-sm">+ Add</button>`
+          }
+        `;
+        resultsContainer.appendChild(div);
+      });
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      document.getElementById('search-results-container').classList.add('hidden');
+      document.getElementById('search-clear-btn').classList.add('hidden');
+    }
+
+    async function addContractFromSearch(token, symbol, name, type, strike, lot) {
+      const res = await apiPost('/api/watchlist/add', { token, symbol, name, type, strike, lot });
+      if (res && res.success) {
+        await fetchLiveWatchlist();
+        clearSearch();
+        showToast(`Added ${name} to Watchlist`, 'success');
+      }
+    }
+
+    function renderWatchlist() {
+      const container = document.getElementById('watchlist-items-container');
+      container.innerHTML = '';
+      document.getElementById('watchlist-count').textContent = state.watchlist.length;
+
+      state.watchlist.forEach(item => {
+        const chgAmt = item.ltp - item.close;
+        const chgPct = item.close ? ((chgAmt / item.close) * 100).toFixed(2) : 0.00;
+        const isPos = chgAmt >= 0;
+
+        const row = document.createElement('div');
+        row.id = `wl-row-${item.id}`;
+        row.className = 'watchlist-row p-3 hover:bg-slate-50 flex items-center justify-between cursor-pointer border-b border-gray-100 transition-colors relative';
+        
+        row.innerHTML = `
+          <div class="flex-1 min-w-0 pr-2">
+            <span class="font-bold text-xs text-gray-800 truncate block">${item.name}</span>
+            <div class="text-[10px] text-gray-400 font-medium font-mono">${item.type || 'F&O'} • Lot ${item.lot}</div>
+          </div>
+          <div class="row-price-meta text-right flex-shrink-0 font-mono">
+            <div class="wl-price text-xs font-bold text-gray-900">${(item.ltp || 0).toFixed(2)}</div>
+            <div class="wl-chg text-[10px] font-semibold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+              ${isPos ? '+' : ''}${chgAmt.toFixed(2)} (${isPos ? '+' : ''}${chgPct}%)
+            </div>
+          </div>
+          <div class="row-actions hidden items-center space-x-1.5 flex-shrink-0">
+            <button onclick="openOrderModal('${item.id}', 'BUY')" title="Buy" class="w-7 h-7 rounded-md bg-evemeria-blue hover:bg-evemeria-blueHover text-white font-extrabold text-xs flex items-center justify-center shadow-sm">B</button>
+            <button onclick="openOrderModal('${item.id}', 'SELL')" title="Sell" class="w-7 h-7 rounded-md bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs flex items-center justify-center shadow-sm">S</button>
+            <button onclick="deleteFromWatchlist('${item.token}', event)" title="Remove" class="w-7 h-7 rounded-md hover:bg-rose-50 text-gray-400 hover:text-rose-600 flex items-center justify-center transition-colors">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+      lucide.createIcons();
+    }
+
+    async function deleteFromWatchlist(token, event) {
+      if (event) event.stopPropagation();
+      try {
+        await fetch(API_BASE + `/api/watchlist/${token}`, { method: 'DELETE' });
+        state.watchlist = state.watchlist.filter(w => String(w.token) !== String(token));
+        renderWatchlist();
+        showToast('Removed from Watchlist', 'info');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function updateMarketStatusHeader() {
+      const badge = document.getElementById('market-status-badge');
+      const dot = document.getElementById('market-dot');
+      const text = document.getElementById('market-status-text');
+      const angelText = document.getElementById('angel-status-text');
+
+      if (state.marketStatus.is_open) {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        text.textContent = 'Market OPEN (Live Ticks)';
+        badge.className = 'hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-gray-400';
+        text.textContent = 'Market CLOSED';
+        badge.className = 'hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200';
+      }
+
+      if (state.marketStatus.is_connected) {
+        angelText.textContent = 'Angel One LIVE 🟢';
+      } else {
+        angelText.textContent = 'Angel One API';
+      }
+    }
+
+    /* Strategy Master */
+    function renderStrategyOptions() {
+      const select = document.getElementById('modal-strategy-select');
+      select.innerHTML = '';
+      state.strategies.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        select.appendChild(opt);
+      });
+    }
+
+    function renderStrategyMasterList() {
+      const container = document.getElementById('strategy-list-container');
+      container.innerHTML = '';
+      state.strategies.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'p-2 flex items-center justify-between';
+        div.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="w-3 h-3 rounded-full" style="background-color: ${s.color}"></span>
+            <span class="font-bold text-gray-800">${s.name}</span>
+            <span class="text-[10px] text-gray-400 font-medium">${s.description || ''}</span>
+          </div>
+          ${s.id !== 'strat_general' ? `
+            <button onclick="deleteStrategy('${s.id}')" class="text-gray-400 hover:text-red-500 text-xs font-semibold">Delete</button>
+          ` : '<span class="text-[10px] text-gray-400 font-semibold">Default</span>'}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function createNewStrategy() {
+      const name = document.getElementById('new-strat-name').value.trim();
+      const desc = document.getElementById('new-strat-desc').value.trim();
+      const color = document.getElementById('new-strat-color').value;
+
+      if (!name) return alert('Please enter a strategy name');
+
+      const res = await apiPost('/api/strategies', { name, description: desc, color, user_id: currentUser.id });
+      if (res) {
+        document.getElementById('new-strat-name').value = '';
+        document.getElementById('new-strat-desc').value = '';
+        await loadData();
+        showToast(`Created setup: ${name}`, 'success');
+      }
+    }
+
+    async function deleteStrategy(id) {
+      if (confirm('Delete this setup? Any open trades will be moved to General.')) {
+        await fetch(`/api/strategies/${id}?user_id=${currentUser.id}`, { method: 'DELETE' });
+        await loadData();
+        showToast('Strategy deleted', 'info');
+      }
+    }
+
+    /* Positions & Execution */
+    function renderGroupedPositions() {
+      const container = document.getElementById('strategy-grouped-container');
+      const emptyState = document.getElementById('positions-empty-state');
+      const badge = document.getElementById('badge-positions-count');
+      const btnExitSelected = document.getElementById('btn-exit-selected');
+      const btnExitAll = document.getElementById('btn-exit-all');
+
+      container.innerHTML = '';
+      let totalPos = 0;
+      state.groupedPositions.forEach(g => totalPos += g.positions.length);
+      badge.textContent = totalPos;
+
+      if (totalPos === 0) {
+        emptyState.classList.remove('hidden');
+        btnExitAll.classList.add('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        btnExitAll.classList.remove('hidden');
+
+        state.groupedPositions.forEach(group => {
+          if (group.positions.length === 0) return;
+
+          const isGroupPos = group.total_pnl >= 0;
+          const groupCard = document.createElement('div');
+          groupCard.className = 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden';
+
+          groupCard.innerHTML = `
+            <div class="p-3 bg-slate-50 border-b border-gray-200 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <span class="w-3 h-3 rounded-full" style="background-color: ${group.color}"></span>
+                <span class="font-extrabold text-xs text-gray-800 tracking-wide uppercase">${group.name}</span>
+                <span class="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold">${group.positions.length} position${group.positions.length > 1 ? 's' : ''}</span>
+              </div>
+              <div class="flex items-center space-x-4">
+                <div class="text-right">
+                  <span class="text-[10px] text-gray-400 font-semibold uppercase">Group P&L:</span>
+                  <span class="font-extrabold text-xs ml-1 font-mono ${isGroupPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+                    ${isGroupPos ? '+' : ''}₹${group.total_pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <button onclick="exitStrategyGroup('${group.strategy_id}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 rounded text-[11px] font-bold border border-rose-200 transition-colors">
+                  Exit Group
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-slate-100 text-gray-500 font-semibold border-b border-gray-200 text-[11px] font-sans">
+                  <tr>
+                    <th class="py-2.5 px-3 w-10 text-center">
+                      <input type="checkbox" onchange="toggleSelectGroup('${group.strategy_id}', this.checked)" class="rounded border-gray-300 text-evemeria-blue">
+                    </th>
+                    <th class="py-2.5 px-3">Product</th>
+                    <th class="py-2.5 px-4">Instrument</th>
+                    <th class="py-2.5 px-4 text-right">Qty</th>
+                    <th class="py-2.5 px-4 text-right">Buy Avg</th>
+                    <th class="py-2.5 px-4 text-right">LTP</th>
+                    <th class="py-2.5 px-4 text-center">SL / Target</th>
+                    <th class="py-2.5 px-4 text-right">MTM P&L</th>
+                    <th class="py-2.5 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  ${group.positions.map(p => {
+                    const isPos = p.pnl >= 0;
+                    const isSelected = state.selectedPositions.has(p.id);
+                    const slText = p.stoploss ? `SL: ₹${p.stoploss}` : '';
+                    const tgtText = p.target ? `Tgt: ₹${p.target}` : '';
+                    const bracketInfo = (slText || tgtText) ? `${slText} | ${tgtText}` : '<span class="text-gray-300 font-sans">-</span>';
+
+                    return `
+                      <tr class="hover:bg-slate-50 ${isSelected ? 'bg-blue-50/40' : ''}">
+                        <td class="py-2 px-3 text-center">
+                          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelectPos('${p.id}', this.checked)" class="rounded border-gray-300 text-evemeria-blue">
+                        </td>
+                        <td class="py-2 px-3 font-bold font-sans">
+                          <span class="px-1.5 py-0.5 rounded text-[10px] ${p.product === 'NRML' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}">${p.product}</span>
+                        </td>
+                        <td class="py-2 px-4 font-bold text-gray-900 font-sans">${p.name}</td>
+                        <td class="py-2 px-4 text-right font-extrabold ${p.qty > 0 ? 'text-evemeria-blue' : 'text-orange-600'}">${p.qty > 0 ? '+' : ''}${p.qty}</td>
+                        <td class="py-2 px-4 text-right text-gray-600">₹${p.avg_price.toFixed(2)}</td>
+                        <td class="py-2 px-4 text-right font-bold text-gray-900">₹${p.ltp.toFixed(2)}</td>
+                        <td class="py-2 px-4 text-center text-[10px] text-gray-500">${bracketInfo}</td>
+                        <td class="py-2 px-4 text-right font-extrabold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+                          ${isPos ? '+' : ''}₹${p.pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td class="py-2 px-4 text-center font-sans">
+                          <button onclick="openPartialExitModal('${p.id}')" title="Square off" class="px-3 py-1 bg-gray-100 hover:bg-rose-600 hover:text-white text-gray-700 rounded-md font-bold text-[11px] shadow-sm transition-colors">
+                            Exit
+                          </button>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+          container.appendChild(groupCard);
+        });
+      }
+
+      updateSelectionUI();
+      updateHeaderPnlDisplay();
+    }
+
+    function toggleSelectPos(id, checked) {
+      if (checked) state.selectedPositions.add(id);
+      else state.selectedPositions.delete(id);
+      updateSelectionUI();
+    }
+
+    function toggleSelectGroup(stratId, checked) {
+      const group = state.groupedPositions.find(g => g.strategy_id === stratId);
+      if (group) {
+        group.positions.forEach(p => {
+          if (checked) state.selectedPositions.add(p.id);
+          else state.selectedPositions.delete(p.id);
+        });
+      }
+      renderGroupedPositions();
+    }
+
+    function updateSelectionUI() {
+      const count = state.selectedPositions.size;
+      const btn = document.getElementById('btn-exit-selected');
+      const label = document.getElementById('label-exit-selected');
+      if (count > 0) {
+        btn.classList.remove('hidden');
+        label.textContent = `Exit Selected (${count})`;
+      } else {
+        btn.classList.add('hidden');
+      }
+    }
+
+    async function exitSelectedPositions() {
+      if (state.selectedPositions.size === 0) return;
+      const count = state.selectedPositions.size;
+      if (!confirm(`Exit all ${count} selected positions?`)) return;
+
+      for (const id of state.selectedPositions) {
+        let pos = null;
+        state.groupedPositions.forEach(g => {
+          const found = g.positions.find(p => p.id === id);
+          if (found) pos = found;
+        });
+        if (pos) {
+          await apiPost('/api/positions/exit', {
+            position_id: pos.id,
+            exit_qty: Math.abs(pos.qty),
+            exit_price: pos.ltp,
+            exit_reason: 'BATCH_EXIT',
+            user_id: currentUser.id
+          });
+        }
+      }
+
+      state.selectedPositions.clear();
+      playOrderDing();
+      showToast(`Squared off ${count} positions`, 'info');
+      await loadData();
+    }
+
+    async function exitStrategyGroup(stratId) {
+      if (!confirm('Square off all positions under this strategy?')) return;
+      const res = await apiPost('/api/positions/exit-strategy', { strategy_id: stratId, user_id: currentUser.id });
+      if (res && res.success) {
+        playOrderDing();
+        showToast(res.message, 'info');
+        await loadData();
+      }
+    }
+
+    async function exitAllPositions() {
+      if (!confirm('Square off ALL open positions at market price?')) return;
+      for (const g of state.groupedPositions) {
+        for (const p of g.positions) {
+          await apiPost('/api/positions/exit', {
+            position_id: p.id,
+            exit_qty: Math.abs(p.qty),
+            exit_price: p.ltp,
+            exit_reason: 'EXIT_ALL',
+            user_id: currentUser.id
+          });
+        }
+      }
+      playOrderDing();
+      showToast('All positions exited successfully', 'info');
+      await loadData();
+    }
+
+    /* Partial Quantity Exit Modal */
+    function openPartialExitModal(posId) {
+      let pos = null;
+      state.groupedPositions.forEach(g => {
+        const found = g.positions.find(p => p.id === posId);
+        if (found) pos = found;
+      });
+      if (!pos) return;
+
+      state.activePartialExit = {
+        position: pos,
+        maxQty: Math.abs(pos.qty),
+        lotSize: pos.lot_size || 25,
+        currentLtp: pos.ltp
+      };
+
+      document.getElementById('pe-instrument-name').textContent = pos.name;
+      document.getElementById('pe-total-qty').textContent = `${Math.abs(pos.qty)} Qty (${Math.round(Math.abs(pos.qty) / (pos.lot_size || 25))} Lots)`;
+      document.getElementById('pe-current-ltp').textContent = `₹${pos.ltp.toFixed(2)}`;
+
+      const input = document.getElementById('pe-qty-input');
+      input.value = Math.abs(pos.qty);
+      input.max = Math.abs(pos.qty);
+      input.step = pos.lot_size || 25;
+      input.min = pos.lot_size || 25;
+
+      updateExitEstimate();
+      document.getElementById('partial-exit-modal').classList.remove('hidden');
+    }
+
+    function closePartialExitModal() {
+      document.getElementById('partial-exit-modal').classList.add('hidden');
+      state.activePartialExit.position = null;
+    }
+
+    function setExitFraction(fraction) {
+      const { maxQty, lotSize } = state.activePartialExit;
+      let calculated = Math.round((maxQty * fraction) / lotSize) * lotSize;
+      if (calculated < lotSize) calculated = lotSize;
+      if (calculated > maxQty) calculated = maxQty;
+      document.getElementById('pe-qty-input').value = calculated;
+      updateExitEstimate();
+    }
+
+    function stepExitQty(dir) {
+      const { maxQty, lotSize } = state.activePartialExit;
+      const input = document.getElementById('pe-qty-input');
+      let val = parseInt(input.value) || maxQty;
+      val += dir * lotSize;
+      if (val < lotSize) val = lotSize;
+      if (val > maxQty) val = maxQty;
+      input.value = val;
+      updateExitEstimate();
+    }
+
+    function updateExitEstimate() {
+      const pos = state.activePartialExit.position;
+      if (!pos) return;
+      const qty = parseInt(document.getElementById('pe-qty-input').value) || 0;
+      const isLong = pos.qty > 0;
+      const estPnl = (pos.ltp - pos.avg_price) * qty * (isLong ? 1 : -1);
+      const isPos = estPnl >= 0;
+      const pnlEl = document.getElementById('pe-estimated-pnl');
+      pnlEl.textContent = `${isPos ? '+' : ''}₹${estPnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      pnlEl.className = `font-extrabold font-mono ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+    }
+
+    async function confirmPartialExit() {
+      const pos = state.activePartialExit.position;
+      if (!pos) return;
+      const qty = parseInt(document.getElementById('pe-qty-input').value);
+
+      const res = await apiPost('/api/positions/exit', {
+        position_id: pos.id,
+        exit_qty: qty,
+        exit_price: pos.ltp,
+        exit_reason: qty === Math.abs(pos.qty) ? 'MANUAL' : 'PARTIAL_EXIT',
+        user_id: currentUser.id
+      });
+
+      if (res && res.success) {
+        playOrderDing();
+        showToast(res.message, 'success');
+        closePartialExitModal();
+        await loadData();
+      }
+    }
+
+    /* Order Placement */
+    function openOrderModal(instId, action = 'BUY') {
+      const item = state.watchlist.find(w => w.id === instId);
+      if (!item) return;
+
+      state.activeOrderModal.instrument = item;
+      setOrderAction(action);
+
+      document.getElementById('modal-instrument-name').textContent = item.name;
+      document.getElementById('modal-instrument-ltp').textContent = item.ltp.toFixed(2);
+      document.getElementById('modal-lotsize-hint').textContent = `(Lot: ${item.lot})`;
+
+      const qtyInput = document.getElementById('modal-qty-input');
+      qtyInput.value = item.lot;
+      qtyInput.step = item.lot;
+      qtyInput.min = item.lot;
+
+      document.getElementById('modal-sl-input').value = (item.ltp * (action === 'BUY' ? 0.85 : 1.15)).toFixed(1);
+      document.getElementById('modal-target-input').value = (item.ltp * (action === 'BUY' ? 1.30 : 0.70)).toFixed(1);
+
+      updateMarginEstimate();
+      checkRmsRisk();
+      document.getElementById('order-modal-backdrop').classList.remove('hidden');
+    }
+
+    function closeOrderModal() {
+      document.getElementById('order-modal-backdrop').classList.add('hidden');
+      state.activeOrderModal.instrument = null;
+    }
+
+    function setOrderAction(action) {
+      state.activeOrderModal.action = action;
+      const header = document.getElementById('order-modal-header');
+      const submitBtn = document.getElementById('modal-submit-btn');
+      const actionLabel = document.getElementById('modal-order-action-label');
+      const btnBuy = document.getElementById('toggle-btn-buy');
+      const btnSell = document.getElementById('toggle-btn-sell');
+
+      if (action === 'BUY') {
+        header.className = 'bg-evemeria-blue text-white px-5 py-3.5 flex items-center justify-between transition-colors';
+        submitBtn.className = 'px-6 py-2 bg-evemeria-blue hover:bg-evemeria-blueHover text-white rounded-lg text-xs font-bold shadow-md';
+        submitBtn.textContent = 'BUY ORDER';
+        actionLabel.textContent = 'BUY';
+        btnBuy.className = 'px-3.5 py-1 rounded-full bg-white text-evemeria-blue font-bold';
+        btnSell.className = 'px-3.5 py-1 rounded-full text-white font-bold';
+      } else {
+        header.className = 'bg-orange-600 text-white px-5 py-3.5 flex items-center justify-between transition-colors';
+        submitBtn.className = 'px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold shadow-md';
+        submitBtn.textContent = 'SELL ORDER';
+        actionLabel.textContent = 'SELL';
+        btnSell.className = 'px-3.5 py-1 rounded-full bg-white text-orange-600 font-bold';
+        btnBuy.className = 'px-3.5 py-1 rounded-full text-white font-bold';
+      }
+      updateMarginEstimate();
+      checkRmsRisk();
+    }
+
+    function toggleMisBracketOptions(isMis) {
+      const bracketSec = document.getElementById('mis-bracket-section');
+      if (isMis) bracketSec.classList.remove('hidden');
+      else bracketSec.classList.add('hidden');
+    }
+
+    function toggleBracketInputs(enabled) {
+      const container = document.getElementById('bracket-inputs-container');
+      const riskInd = document.getElementById('rms-risk-indicator');
+      if (enabled) {
+        container.classList.remove('hidden');
+        riskInd.classList.remove('hidden');
+        checkRmsRisk();
+      } else {
+        container.classList.add('hidden');
+        riskInd.classList.add('hidden');
+      }
+    }
+
+    function stepQty(dir) {
+      const item = state.activeOrderModal.instrument;
+      if (!item) return;
+      const input = document.getElementById('modal-qty-input');
+      let cur = parseInt(input.value) || item.lot;
+      cur += dir * item.lot;
+      if (cur < item.lot) cur = item.lot;
+      input.value = cur;
+      updateMarginEstimate();
+      checkRmsRisk();
+    }
+
+    function checkRmsRisk() {
+      const item = state.activeOrderModal.instrument;
+      if (!item) return;
+      const isBracket = document.getElementById('bracket-enable-chk').checked;
+      if (!isBracket) return;
+
+      const slVal = parseFloat(document.getElementById('modal-sl-input').value) || 0;
+      const qty = parseInt(document.getElementById('modal-qty-input').value) || item.lot;
+      if (slVal <= 0) return;
+
+      const riskPerShare = Math.abs(item.ltp - slVal);
+      const totalRisk = riskPerShare * qty;
+
+      const riskAmtEl = document.getElementById('rms-risk-amount');
+      const warnEl = document.getElementById('rms-risk-warning');
+      riskAmtEl.textContent = `₹${totalRisk.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Max: ₹1,00,000)`;
+
+      if (totalRisk > 100000) {
+        riskAmtEl.className = 'font-bold text-rose-600';
+        warnEl.classList.remove('hidden');
+      } else {
+        riskAmtEl.className = 'font-bold text-gray-800';
+        warnEl.classList.add('hidden');
+      }
+    }
+
+    function updateMarginEstimate() {
+      const item = state.activeOrderModal.instrument;
+      if (!item) return;
+
+      const qty = parseInt(document.getElementById('modal-qty-input').value) || item.lot;
+      const lots = Math.round(qty / item.lot);
+      document.getElementById('modal-lots-count').textContent = `${lots} Lot${lots > 1 ? 's' : ''}`;
+
+      const isBuy = state.activeOrderModal.action === 'BUY';
+      let reqMargin = isBuy && !item.name.includes('FUT') ? (item.ltp * qty) : (120000 * lots);
+
+      document.getElementById('modal-margin-required').textContent = `₹${reqMargin.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('modal-margin-available').textContent = `₹${(state.account.available_margin || 10000000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    }
+
+    async function submitOrder() {
+      const item = state.activeOrderModal.instrument;
+      if (!item) return;
+
+      const action = state.activeOrderModal.action;
+      const product = document.querySelector('input[name="product-type"]:checked').value;
+      const qty = parseInt(document.getElementById('modal-qty-input').value) || item.lot;
+      const strategyId = document.getElementById('modal-strategy-select').value;
+      const isBracket = product === 'MIS' && document.getElementById('bracket-enable-chk').checked;
+
+      const slVal = isBracket ? parseFloat(document.getElementById('modal-sl-input').value) || null : null;
+      const tgtVal = isBracket ? parseFloat(document.getElementById('modal-target-input').value) || null : null;
+
+      const res = await apiPost('/api/orders', {
+        type: action,
+        name: item.name,
+        token: item.token,
+        product,
+        qty,
+        order_price: item.ltp,
+        strategy_id: strategyId,
+        stoploss: slVal,
+        target: tgtVal,
+        user_id: currentUser.id
+      });
+
+      if (res && res.success) {
+        playOrderDing();
+        showToast(res.message, 'success');
+        closeOrderModal();
+        await loadData();
+      } else {
+        alert(res?.message || 'Order failed');
+      }
+    }
+
+    /* Angel One Connect Modal */
+    function openAngelModal() {
+      document.getElementById('angel-modal').classList.remove('hidden');
+    }
+    function closeAngelModal() {
+      document.getElementById('angel-modal').classList.add('hidden');
+    }
+    async function saveAndConnectAngel() {
+      const apiKey = document.getElementById('angel-api-key').value.trim();
+      const clientId = document.getElementById('angel-client-id').value.trim();
+      const pin = document.getElementById('angel-pin').value.trim();
+      const totp = document.getElementById('angel-totp').value.trim();
+      const btn = document.getElementById('btn-save-angel');
+
+      if (!apiKey || !clientId || !pin || !totp) {
+        return alert("Please fill all 4 fields: API Key, Client ID, PIN, and TOTP Secret Key.");
+      }
+
+      btn.textContent = "Connecting...";
+      btn.disabled = true;
+
+      try {
+        const res = await apiPost('/api/angel/connect', {
+          api_key: apiKey,
+          client_id: clientId,
+          pin: pin,
+          totp_secret: totp
+        });
+
+        if (res && res.success) {
+          showToast(res.message, 'success');
+          closeAngelModal();
+          await loadData();
+        } else {
+          alert(res?.message || "Connection failed.");
+        }
+      } catch (err) {
+        alert("Connection error: " + err.message);
+      } finally {
+        btn.textContent = "Connect Live Market";
+        btn.disabled = false;
+      }
+    }
+
+    function openStrategyMasterModal() {
+      document.getElementById('strategy-master-modal').classList.remove('hidden');
+    }
+    function closeStrategyMasterModal() {
+      document.getElementById('strategy-master-modal').classList.add('hidden');
+    }
+
+    /* Orders, History & Ledger Rendering */
+    function renderOrders() {
+      const tbody = document.getElementById('orders-table-body');
+      const empty = document.getElementById('orders-empty-state');
+      const badge = document.getElementById('badge-orders-count');
+      tbody.innerHTML = '';
+      badge.textContent = state.orders.length;
+
+      if (state.orders.length === 0) {
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        state.orders.forEach(o => {
+          const strat = state.strategies.find(s => s.id === o.strategy_id);
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 border-b border-gray-100';
+          tr.innerHTML = `
+            <td class="py-2.5 px-4 text-gray-400 text-[11px]">${o.time}</td>
+            <td class="py-2.5 px-4 font-extrabold ${o.type === 'BUY' ? 'text-evemeria-blue' : 'text-orange-600'}">${o.type}</td>
+            <td class="py-2.5 px-4 font-bold text-gray-900 font-sans">${o.name}</td>
+            <td class="py-2.5 px-4 text-gray-600 font-sans">${o.product}</td>
+            <td class="py-2.5 px-4 text-right font-extrabold">${o.qty}</td>
+            <td class="py-2.5 px-4 text-right">₹${o.exec_price ? o.exec_price.toFixed(2) : o.order_price}</td>
+            <td class="py-2.5 px-4 font-semibold font-sans" style="color: ${strat ? strat.color : '#387ed1'}">${strat ? strat.name : 'General'}</td>
+            <td class="py-2.5 px-4 text-center font-sans"><span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">COMPLETE</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    function renderClosedTrades() {
+      const tbody = document.getElementById('closed-trades-body');
+      const empty = document.getElementById('closed-empty-state');
+      const badge = document.getElementById('closed-count-badge');
+      tbody.innerHTML = '';
+      badge.textContent = `${state.closedTrades.length} trades`;
+
+      if (state.closedTrades.length === 0) {
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        state.closedTrades.forEach(tr => {
+          const isPos = tr.pnl >= 0;
+          const trEl = document.createElement('tr');
+          trEl.className = 'hover:bg-slate-50 border-b border-gray-100';
+          trEl.innerHTML = `
+            <td class="py-2 px-4 text-gray-400 text-[11px]">${tr.time}</td>
+            <td class="py-2 px-4 font-bold text-gray-900 font-sans">${tr.name}</td>
+            <td class="py-2 px-4 text-gray-600 font-sans">${tr.product}</td>
+            <td class="py-2 px-4 text-right font-extrabold">${tr.qty}</td>
+            <td class="py-2 px-4 text-right text-gray-600">₹${tr.buy_avg.toFixed(2)}</td>
+            <td class="py-2 px-4 text-right text-gray-600">₹${tr.exit_avg.toFixed(2)}</td>
+            <td class="py-2 px-4 text-right font-extrabold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+              ${isPos ? '+' : ''}₹${tr.pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </td>
+            <td class="py-2 px-4 text-center text-[10px] text-gray-500 font-sans">${tr.exit_reason || 'MANUAL'}</td>
+          `;
+          tbody.appendChild(trEl);
+        });
+      }
+    }
+
+    function renderLedgerStatement() {
+      const tbody = document.getElementById('ledger-table-body');
+      tbody.innerHTML = '';
+
+      let netRealised = 0.0;
+      let lastBal = 10000000.0;
+
+      if (state.ledger.length > 0) {
+        lastBal = state.ledger[0].balance;
+        state.ledger.forEach(entry => {
+          if (entry.voucher_type === 'TRADE_PROFIT') netRealised += entry.credit;
+          if (entry.voucher_type === 'TRADE_LOSS') netRealised -= entry.debit;
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 border-b border-gray-100';
+          tr.innerHTML = `
+            <td class="py-2.5 px-4 text-gray-500">${entry.date}</td>
+            <td class="py-2.5 px-4 text-gray-400 text-[11px]">${entry.time}</td>
+            <td class="py-2.5 px-6 font-semibold text-gray-800 font-sans">${entry.particulars}</td>
+            <td class="py-2.5 px-3 text-center"><span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold font-sans">${entry.voucher_type}</span></td>
+            <td class="py-2.5 px-4 text-right text-rose-600 font-bold">${entry.debit > 0 ? `₹${entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
+            <td class="py-2.5 px-4 text-right text-emerald-600 font-bold">${entry.credit > 0 ? `₹${entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
+            <td class="py-2.5 px-4 text-right font-extrabold text-gray-900">₹${entry.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('ledger-entries-count').textContent = state.ledger.length;
+      document.getElementById('ledger-current-balance').textContent = `₹${lastBal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      
+      const netPnlEl = document.getElementById('ledger-net-pnl');
+      netPnlEl.textContent = `${netRealised >= 0 ? '+' : ''}₹${netRealised.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      netPnlEl.className = `text-xl font-black font-mono mt-1 ${netRealised >= 0 ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+    }
+
+    function downloadLedgerCSV() {
+      let csv = "Date,Time,Particulars,Voucher Type,Debit,Credit,Balance\n";
+      state.ledger.forEach(r => {
+        csv += `"${r.date}","${r.time}","${r.particulars}","${r.voucher_type}",${r.debit},${r.credit},${r.balance}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `evemeria_ledger_${currentUser.username}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function updateFundsView() {
+      const acc = state.account;
+      const hedge = state.hedgeInfo;
+
+      document.getElementById('funds-available-margin').textContent = `₹${(acc.available_margin || 10000000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('funds-used-margin').textContent = `₹${(acc.used_margin || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('funds-realised-pnl').textContent = `₹${(acc.realised_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('funds-unrealised-pnl').textContent = `₹${(acc.unrealised_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('funds-total-balance').textContent = `₹${(acc.net_worth || 10000000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('header-available-funds').textContent = `₹${Math.round(acc.available_margin || 10000000).toLocaleString('en-IN')}`;
+
+      if (hedge && hedge.hedge_benefit > 0) {
+        document.getElementById('funds-hedge-discount-badge').textContent = `₹${hedge.hedge_benefit.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Saved`;
+        document.getElementById('funds-naked-margin').textContent = `₹${hedge.naked_margin.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        document.getElementById('funds-effective-margin').textContent = `₹${hedge.total_margin.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+        const pill = document.getElementById('banner-hedge-benefit-pill');
+        const pillVal = document.getElementById('banner-hedge-benefit-val');
+        pill.classList.remove('hidden');
+        pillVal.textContent = `Hedge Margin Saved: ₹${Math.round(hedge.hedge_benefit).toLocaleString('en-IN')}`;
+      } else {
+        document.getElementById('funds-hedge-discount-badge').textContent = `₹0.00 Saved`;
+        document.getElementById('funds-naked-margin').textContent = `₹${(hedge?.naked_margin || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        document.getElementById('funds-effective-margin').textContent = `₹${(hedge?.total_margin || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        document.getElementById('banner-hedge-benefit-pill').classList.add('hidden');
+      }
+    }
+
+    function updateHeaderPnlDisplay() {
+      const acc = state.account;
+      const totalPnl = (acc.realised_pnl || 0) + (acc.unrealised_pnl || 0);
+      const isPos = totalPnl >= 0;
+
+      const totalPnlEl = document.getElementById('pos-total-pnl');
+      totalPnlEl.textContent = `${isPos ? '+' : ''}₹${totalPnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      totalPnlEl.className = `text-xl sm:text-2xl font-black font-mono ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+
+      const unPnlEl = document.getElementById('pos-unrealised-pnl');
+      unPnlEl.textContent = `${acc.unrealised_pnl >= 0 ? '+' : ''}₹${(acc.unrealised_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      unPnlEl.className = `text-sm sm:text-base font-bold font-mono ${acc.unrealised_pnl >= 0 ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+
+      const rePnlEl = document.getElementById('pos-realised-pnl');
+      rePnlEl.textContent = `${acc.realised_pnl >= 0 ? '+' : ''}₹${(acc.realised_pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      rePnlEl.className = `text-sm sm:text-base font-bold font-mono ${acc.realised_pnl >= 0 ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+    }
+
+    /* ================= ADMIN SUPERVISORY MASTER CONTROLS ================= */
+    async function refreshAdminDeskMonitor() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      const pin = currentUser.pin_verified || '9999';
+      const data = await apiGet(`/api/desk/leaderboard?admin_pin=${encodeURIComponent(pin)}`);
+      if (!data) return;
+
+      state.adminDesksData = data;
+      const tbody = document.getElementById('admin-desks-table-body');
+      tbody.innerHTML = '';
+
+      let totalOfficePnl = 0.0;
+      let totalOpenPos = 0;
+      let lockedCount = 0;
+
+      data.forEach(desk => {
+        totalOfficePnl += desk.net_pnl;
+        totalOpenPos += desk.positions_count;
+        if (desk.is_locked === 1) lockedCount++;
+
+        const isPos = desk.net_pnl >= 0;
+        const isLocked = desk.is_locked === 1;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 border-b border-gray-100';
+        tr.innerHTML = `
+          <td class="py-3 px-3 text-center font-bold font-sans">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">Desk ${String(desk.desk_no).padStart(2, '0')}</span>
+          </td>
+          <td class="py-3 px-4 font-extrabold text-gray-900 font-sans">${desk.username}</td>
+          <td class="py-3 px-3 text-center font-bold font-mono">${desk.positions_count}</td>
+          <td class="py-3 px-4 text-right font-bold ${desk.unrealised_pnl >= 0 ? 'text-evemeria-green' : 'text-evemeria-red'}">
+            ${desk.unrealised_pnl >= 0 ? '+' : ''}₹${desk.unrealised_pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </td>
+          <td class="py-3 px-4 text-right font-bold ${desk.realised_pnl >= 0 ? 'text-evemeria-green' : 'text-evemeria-red'}">
+            ${desk.realised_pnl >= 0 ? '+' : ''}₹${desk.realised_pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </td>
+          <td class="py-3 px-4 text-right font-black ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'} text-sm">
+            ${isPos ? '+' : ''}₹${desk.net_pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </td>
+          <td class="py-3 px-3 text-center font-sans">
+            ${isLocked ? 
+              `<span class="bg-rose-100 text-rose-700 border border-rose-300 px-2 py-0.5 rounded-full text-[10px] font-extrabold">🔴 RMS LOCKED</span>` : 
+              `<span class="bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-bold">🟢 ACTIVE</span>`
+            }
+          </td>
+          <td class="py-3 px-4 text-center font-sans space-x-1.5 whitespace-nowrap">
+            <button onclick="adminInspectTraderLedger(${desk.desk_no}, '${desk.username}')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-evemeria-blue border border-blue-200 rounded font-bold text-[11px] shadow-sm">
+              Ledger Statement
+            </button>
+            ${isLocked ? `
+              <button onclick="adminUnlockDesk(${desk.desk_no})" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold text-[11px] shadow-sm">
+                Unlock Desk
+              </button>
+            ` : ''}
+            <button onclick="adminResetTraderBalance(${desk.desk_no}, '${desk.username}')" class="px-2 py-1 bg-gray-100 hover:bg-rose-50 hover:text-rose-600 text-gray-600 border border-gray-200 rounded font-semibold text-[10px]">
+              Reset to 1 Cr
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update Admin Summary Cards
+      const officePnlEl = document.getElementById('admin-total-office-pnl');
+      officePnlEl.textContent = `${totalOfficePnl >= 0 ? '+' : ''}₹${totalOfficePnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      officePnlEl.className = `text-2xl font-black font-mono mt-1 ${totalOfficePnl >= 0 ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+
+      document.getElementById('admin-total-open-pos').textContent = totalOpenPos;
+      document.getElementById('admin-active-desks-count').textContent = `${18 - lockedCount} / 18`;
+      document.getElementById('admin-locked-desks-count').textContent = lockedCount;
+    }
+
+    async function adminInspectTraderLedger(deskNo, username) {
+      const ledger = await apiGet(`/api/ledger?user_id=${deskNo}`);
+      if (!ledger) return;
+
+      document.getElementById('atl-modal-desk-badge').textContent = `Desk ${String(deskNo).padStart(2, '0')}`;
+      document.getElementById('atl-modal-trader-title').textContent = `${username} Financial Ledger Statement`;
+      
+      const tbody = document.getElementById('atl-table-body');
+      tbody.innerHTML = '';
+
+      let lastBal = 10000000.0;
+      if (ledger.length > 0) {
+        lastBal = ledger[0].balance;
+        ledger.forEach(entry => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 border-b border-gray-100';
+          tr.innerHTML = `
+            <td class="py-2 px-4 text-gray-500">${entry.date}</td>
+            <td class="py-2 px-4 text-gray-400 text-[11px]">${entry.time}</td>
+            <td class="py-2 px-6 font-semibold text-gray-800 font-sans">${entry.particulars}</td>
+            <td class="py-2 px-3 text-center"><span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold font-sans">${entry.voucher_type}</span></td>
+            <td class="py-2 px-4 text-right text-rose-600 font-bold">${entry.debit > 0 ? `₹${entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
+            <td class="py-2 px-4 text-right text-emerald-600 font-bold">${entry.credit > 0 ? `₹${entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
+            <td class="py-2 px-4 text-right font-extrabold text-gray-900">₹${entry.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('atl-modal-balance-summary').textContent = `Current Ledger Balance: ₹${lastBal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('admin-trader-ledger-modal').classList.remove('hidden');
+    }
+
+    function closeAdminTraderLedgerModal() {
+      document.getElementById('admin-trader-ledger-modal').classList.add('hidden');
+    }
+
+    async function adminUnlockDesk(deskNo) {
+      if (!confirm(`Unlock Desk ${deskNo} and permit trading again?`)) return;
+      const res = await apiPost('/api/desk/unlock', {
+        user_id: deskNo,
+        admin_pin: currentUser.pin_verified || '9999'
+      });
+      if (res && res.success) {
+        showToast(res.message, 'success');
+        await refreshAdminDeskMonitor();
+      } else {
+        alert(res?.detail || 'Failed to unlock');
+      }
+    }
+
+    async function adminResetTraderBalance(deskNo, username) {
+      if (!confirm(`ADMIN ACTION: Reset Desk ${deskNo} (${username}) balance back to ₹1,00,00,000 (1 Crore) and clear open trades?`)) return;
+      const res = await apiPost('/api/funds/reset', {
+        user_id: deskNo,
+        admin_pin: currentUser.pin_verified || '9999'
+      });
+      if (res && res.success) {
+        showToast(res.message, 'success');
+        await refreshAdminDeskMonitor();
+      } else {
+        alert(res?.detail || 'Failed to reset');
+      }
+    }
+
+    /* Tab Switching (Desktop) */
+    function switchTab(tabId) {
+      state.currentTab = tabId;
+      ['positions', 'orders', 'funds', 'ledger', 'dashboard', 'admin'].forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (view) {
+          if (t === tabId) {
+            view.classList.remove('hidden');
+            if (btn) btn.className = 'hover:text-evemeria-blue py-4 border-b-2 border-evemeria-blue text-evemeria-blue font-bold transition-colors flex items-center gap-1.5';
+          } else {
+            view.classList.add('hidden');
+            if (btn) btn.className = 'hover:text-evemeria-blue py-4 border-b-2 border-transparent transition-colors flex items-center gap-1.5';
+          }
+        }
+      });
+      if (tabId === 'dashboard') renderDashboard();
+      if (tabId === 'ledger') renderLedgerStatement();
+      if (tabId === 'admin') refreshAdminDeskMonitor();
+    }
+
+    /* Mobile Bottom Tab Switching */
+    function mobileSwitchTab(tabId) {
+      const sidebar = document.getElementById('sidebar-watchlist');
+      const main = document.getElementById('main-content');
+
+      ['watchlist', 'positions', 'orders', 'funds', 'ledger'].forEach(t => {
+        const btn = document.getElementById(`mob-tab-${t}`);
+        if (btn) {
+          if (t === tabId) btn.className = 'flex flex-col items-center justify-center py-1 w-full text-evemeria-blue font-bold';
+          else btn.className = 'flex flex-col items-center justify-center py-1 w-full text-gray-500 font-semibold';
+        }
+      });
+
+      if (tabId === 'watchlist') {
+        sidebar.classList.remove('hidden');
+        sidebar.classList.add('w-full');
+        main.classList.add('hidden');
+      } else {
+        sidebar.classList.add('hidden');
+        main.classList.remove('hidden');
+        switchTab(tabId);
+      }
+    }
+
+    function renderDashboard() {
+      const closed = state.closedTrades;
+      const wins = closed.filter(t => t.pnl > 0).length;
+      const losses = closed.filter(t => t.pnl < 0).length;
+      const total = closed.length;
+      const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+
+      document.getElementById('dash-total-trades').textContent = total;
+      document.getElementById('dash-win-trades').textContent = wins;
+      document.getElementById('dash-loss-trades').textContent = losses;
+      document.getElementById('dash-win-rate').textContent = `${winRate}%`;
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      let bg = 'bg-slate-900 text-white';
+      if (type === 'success') bg = 'bg-emerald-600 text-white';
+      if (type === 'error') bg = 'bg-rose-600 text-white';
+
+      toast.className = `${bg} text-xs px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 transition-all transform translate-y-2 opacity-0 pointer-events-auto border border-white/10`;
+      toast.innerHTML = `<span class="font-semibold">${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    /* Bootstrap Application */
+    window.addEventListener('DOMContentLoaded', async () => {
+      setupUserSessionUI();
+      if (currentUser) {
+        await loadData();
+      }
+      lucide.createIcons();
+
+      // Mobile initial view
+      if (window.innerWidth < 768 && currentUser) {
+        mobileSwitchTab('watchlist');
+      }
+
+      // Live tick poll loop
+      setInterval(async () => {
+        if (!currentUser) return;
+        await fetchLiveWatchlist();
+        await fetchGroupedPositions();
+        if (currentUser.role === 'admin' && state.currentTab === 'admin') {
+          await refreshAdminDeskMonitor();
+        }
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
