@@ -66,10 +66,18 @@ class AngelOneService:
 
         try:
             self.smart_api = SmartConnect(api_key=self.api_key.strip())
-            clean_totp = self.totp_secret.replace(" ", "").strip().upper()
-            totp = pyotp.TOTP(clean_totp).now()
+            clean_totp = str(self.totp_secret).replace(" ", "").strip().upper()
             
-            print(f"[AngelOne] Attempting login for client: {self.client_id} with generated TOTP: {totp}")
+            # Smart check: if user entered 6-digit code directly from Authenticator app
+            if clean_totp.isdigit() and len(clean_totp) == 6:
+                totp = clean_totp
+            else:
+                try:
+                    totp = pyotp.TOTP(clean_totp).now()
+                except Exception:
+                    totp = clean_totp
+            
+            print(f"[AngelOne] Attempting login for client: {self.client_id} with TOTP: {totp}")
             data = self.smart_api.generateSession(self.client_id.strip(), str(self.pin).strip(), totp)
             print(f"[AngelOne Response] {data}")
 

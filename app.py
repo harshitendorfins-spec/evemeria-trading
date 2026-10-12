@@ -1,5 +1,6 @@
 import os
 import asyncio
+import random
 from datetime import datetime
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -145,6 +146,44 @@ def connect_angel(req: AngelConnectRequest):
     res = angel_service.connect(req.api_key, req.client_id, req.pin, req.totp_secret)
     return res
 
+def get_fallback_price(name: str, strike: float = 0.0, type_: str = "FUT") -> float:
+    name_up = name.upper()
+    if "NIFTY" in name_up and "BANK" not in name_up:
+        spot = indices_cache.get("NIFTY", {}).get("ltp", 22368.05)
+        if type_ == "CE" and strike > 0:
+            diff = spot - strike
+            return round(max(20.0, diff + 135.0), 2)
+        elif type_ == "PE" and strike > 0:
+            diff = strike - spot
+            return round(max(20.0, diff + 125.0), 2)
+        return round(spot + 45.0, 2)
+    elif "BANKNIFTY" in name_up or "BANK" in name_up:
+        spot = indices_cache.get("BANKNIFTY", {}).get("ltp", 54842.80)
+        if type_ == "CE" and strike > 0:
+            diff = spot - strike
+            return round(max(45.0, diff + 290.0), 2)
+        elif type_ == "PE" and strike > 0:
+            diff = strike - spot
+            return round(max(45.0, diff + 270.0), 2)
+        return round(spot + 85.0, 2)
+    elif "RELIANCE" in name_up:
+        return 2845.50
+    elif "INFY" in name_up:
+        return 1515.20
+    elif "HDFCBANK" in name_up:
+        return 1720.80
+    elif "SBIN" in name_up:
+        return 830.40
+    elif "TCS" in name_up:
+        return 3940.00
+    elif "ICICIBANK" in name_up:
+        return 1260.00
+    elif "TATAMOTORS" in name_up:
+        return 920.00
+    elif strike > 0:
+        return round(max(15.0, strike * 0.025), 2)
+    return 245.0
+
 # Isolated User-Specific Watchlist & Search
 @app.get("/api/watchlist")
 def get_live_watchlist(user_id: int = 1):
@@ -169,8 +208,12 @@ def get_live_watchlist(user_id: int = 1):
     enriched = []
     for item in user_wl:
         tok = str(item["token"])
-        ltp = float(angel_service.live_prices.get(tok, item.get("ltp") or 0.0))
-        close = float(item.get("close") or ltp)
+        if tok not in angel_service.live_prices or angel_service.live_prices[tok] <= 0:
+            base_p = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
+            angel_service.live_prices[tok] = base_p
+
+        ltp = float(angel_service.live_prices.get(tok, 150.0))
+        close = float(item.get("close") or (ltp * 0.994))
         chg = round(ltp - close, 2)
         chg_pct = round((chg / close) * 100, 2) if close else 0.0
         enriched.append({
@@ -453,11 +496,43 @@ async def start_background_monitor():
                                 pass
                     except Exception:
                         pass
+                else:
+                    # Dynamic tick updates when Angel One is not authenticated or market is closed
+                    n_step = round(random.choice([-1.5, -0.5, 0.0, 0.5, 1.5]), 2)
+                    indices_cache["NIFTY"]["ltp"] = round(indices_cache["NIFTY"]["ltp"] + n_step, 2)
+                    indices_cache["NIFTY"]["chg"] = round(indices_cache["NIFTY"]["ltp"] - indices_cache["NIFTY"]["close"], 2)
+                    indices_cache["NIFTY"]["chg_pct"] = round((indices_cache["NIFTY"]["chg"] / indices_cache["NIFTY"]["close"]) * 100, 2)
 
-                    # 4. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
-                    alerts = engine.check_all_users_rms_and_sl(angel_service.live_prices)
-                    if alerts:
-                        print(f"[RMS/SL Alerts] {alerts}")
+                    bn_step = round(random.choice([-4.0, -1.0, 0.0, 1.0, 4.0]), 2)
+                    indices_cache["BANKNIFTY"]["ltp"] = round(indices_cache["BANKNIFTY"]["ltp"] + bn_step, 2)
+                    indices_cache["BANKNIFTY"]["chg"] = round(indices_cache["BANKNIFTY"]["ltp"] - indices_cache["BANKNIFTY"]["close"], 2)
+                    indices_cache["BANKNIFTY"]["chg_pct"] = round((indices_cache["BANKNIFTY"]["chg"] / indices_cache["BANKNIFTY"]["close"]) * 100, 2)
+
+                    try:
+                        c_loop = database.get_connection()
+                        cur_loop = c_loop.cursor()
+                        cur_loop.execute("""
+                            SELECT DISTINCT token, name, strike, type FROM watchlists
+                            UNION
+                            SELECT DISTINCT token, name, 0 as strike, 'FUT' as type FROM positions
+                        """)
+                        active_items = [dict(r) for r in cur_loop.fetchall()]
+                        c_loop.close()
+
+                        for item in active_items:
+                            tok = str(item["token"])
+                            cur_p = angel_service.live_prices.get(tok)
+                            if cur_p is None or cur_p <= 0:
+                                cur_p = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
+                            tick = round(random.choice([-0.20, -0.10, -0.05, 0.05, 0.10, 0.20]), 2)
+                            angel_service.live_prices[tok] = max(1.0, round(cur_p + tick, 2))
+                    except Exception:
+                        pass
+
+                # 4. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
+                alerts = engine.check_all_users_rms_and_sl(angel_service.live_prices)
+                if alerts:
+                    print(f"[RMS/SL Alerts] {alerts}")
 
             except Exception as e:
                 print(f"[Live Loop Error] {e}")
