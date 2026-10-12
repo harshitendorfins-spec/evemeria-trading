@@ -6,14 +6,16 @@ echo ===================================================================
 echo             PUSH EVEMERIA PLATFORM TO GITHUB
 echo ===================================================================
 echo.
-echo Make sure you have created an empty repository on GitHub:
-echo https://github.com/new
+echo Target Repository: https://github.com/harshitendorfins-spec/evemeria-trading.git
+echo.
+echo GitHub requires a Personal Access Token (PAT) for uploading code.
+echo (Get one instantly here: https://github.com/settings/tokens/new)
 echo.
 
-set /p REPO_URL="Enter your GitHub Repository URL (e.g., https://github.com/username/repo.git): "
+set /p GITHUB_TOKEN="Paste your GitHub Token (starts with ghp_...): "
 
-if "%REPO_URL%"=="" (
-    echo [ERROR] Repository URL cannot be empty!
+if "%GITHUB_TOKEN%"=="" (
+    echo [ERROR] Token cannot be empty!
     pause
     exit /b
 )
@@ -21,26 +23,18 @@ if "%REPO_URL%"=="" (
 set GIT_EXE="..\mingit\cmd\git.exe"
 
 echo.
-echo [1/3] Setting remote origin...
-%GIT_EXE% remote remove origin >nul 2>&1
-%GIT_EXE% remote add origin %REPO_URL%
-
-echo.
-echo [2/3] Verifying branch...
-%GIT_EXE% branch -M main
-
-echo.
-echo [3/3] Pushing to GitHub...
-%GIT_EXE% push -u origin main
+echo Pushing code to GitHub...
+%GIT_EXE% push "https://%GITHUB_TOKEN%@github.com/harshitendorfins-spec/evemeria-trading.git" main -u
 
 if %errorlevel% equ 0 (
     echo.
     echo ===================================================================
-    echo [SUCCESS] Code successfully pushed to GitHub!
+    echo [SUCCESS] Evemeria platform successfully uploaded to GitHub!
+    echo Check it at: https://github.com/harshitendorfins-spec/evemeria-trading
     echo ===================================================================
 ) else (
     echo.
-    echo [NOTE] If GitHub asked for authentication, use your GitHub Personal Access Token (PAT) as password.
+    echo [ERROR] Push failed. Please check that your token has 'repo' permission enabled.
 )
 
 echo.
