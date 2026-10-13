@@ -9,6 +9,8 @@ from SmartApi import SmartConnect
 from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 from database import get_connection
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 class AngelOneService:
     def __init__(self):
         self.smart_api = None
@@ -27,11 +29,16 @@ class AngelOneService:
         self.load_saved_credentials()
 
     def load_saved_credentials(self):
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT api_key, client_id, pin, totp_secret FROM angel_settings WHERE id = 1")
-        row = cursor.fetchone()
-        conn.close()
+        self.api_key = ""
+        self.client_id = ""
+        self.pin = ""
+        self.totp_secret = ""
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT api_key, client_id, pin, totp_secret FROM angel_settings WHERE id = 1")
+            row = cursor.fetchone()
+            conn.close()
 
         if row and row["api_key"] and row["client_id"]:
             self.api_key = row["api_key"]
@@ -76,10 +83,18 @@ class AngelOneService:
 
         try:
             self.smart_api = SmartConnect(api_key=self.api_key.strip())
-            clean_totp = self.totp_secret.replace(" ", "").strip().upper()
-            totp = pyotp.TOTP(clean_totp).now()
+            clean_totp = str(self.totp_secret).replace(" ", "").strip().upper()
             
-            print(f"[AngelOne] Attempting login for client: {self.client_id} with generated TOTP: {totp}")
+            # Smart check: if user entered 6-digit code directly from Authenticator app
+            if clean_totp.isdigit() and len(clean_totp) == 6:
+                totp = clean_totp
+            else:
+                try:
+                    totp = pyotp.TOTP(clean_totp).now()
+                except Exception:
+                    totp = clean_totp
+            
+            print(f"[AngelOne] Attempting login for client: {self.client_id} with TOTP: {totp}")
             data = self.smart_api.generateSession(self.client_id.strip(), str(self.pin).strip(), totp)
             print(f"[AngelOne Response] {data}")
 
@@ -265,24 +280,22 @@ class AngelOneService:
         return None
 
     def get_market_status(self):
-        """Check if Indian market is currently OPEN (9:15 AM to 3:30 PM Mon-Fri)"""
-        now = datetime.now()
-        is_weekday = now.weekday() < 5 # Mon = 0, Fri = 4
-        current_time = now.time()
-        market_open = datetime.strptime("09:15:00", "%H:%M:%S").time()
-        market_close = datetime.strptime("15:30:00", "%H:%M:%S").time()
-
-        is_open = is_weekday and (market_open <= current_time <= market_close)
+        """Check if Indian market is currently OPEN (9:15 AM to 3:30 PM Mon-Fri IST)"""
+        now_ist = datetime.now(IST)
+        is_weekday = now_ist.weekday() < 5  # Mon = 0, Fri = 4
+        mins = now_ist.hour * 60 + now_ist.minute
+        # 09:15 AM = 555 mins, 15:30 (3:30 PM) = 930 mins
+        is_open = is_weekday and (555 <= mins <= 930)
         
         status_text = "OPEN" if is_open else "CLOSED"
-        message = "Live Market Session Active" if is_open else "Market Closed (Trading Hours: 09:15 AM - 03:30 PM, Mon-Fri)"
+        message = "Live Market Session Active" if is_open else "Market Closed (Trading Hours: 09:15 AM - 03:30 PM IST, Mon-Fri)"
 
         return {
             "is_open": is_open,
             "status": status_text,
             "message": message,
-            "current_time": now.strftime("%H:%M:%S"),
-            "current_date": now.strftime("%Y-%m-%d"),
+            "current_time": now_ist.strftime("%I:%M:%S %p IST"),
+            "current_date": now_ist.strftime("%Y-%m-%d"),
             "is_connected": self.is_authenticated
         }
 

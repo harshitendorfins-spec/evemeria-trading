@@ -194,9 +194,108 @@ def init_db():
     );
     """)
 
+    cursor.execute("""
+    INSERT OR IGNORE INTO angel_settings (id, api_key, client_id, pin, totp_secret, is_connected)
+    VALUES (1, '', '', '', '', 0);
+    """)
+
+    # 8. User-Specific Watchlists Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS watchlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL,
+        symbol TEXT,
+        name TEXT,
+        exchange TEXT DEFAULT 'NFO',
+        type TEXT DEFAULT 'FUT',
+        strike REAL DEFAULT 0.0,
+        lot INTEGER DEFAULT 1,
+        UNIQUE(user_id, token)
+    );
+    """)
+
     conn.commit()
     conn.close()
 
+# Auto-initialize database on import so tables always exist immediately
+try:
+    init_db()
+except Exception as e:
+    print(f"[Database Auto-Init Warning] {e}")
+
+def get_user_watchlist(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM watchlists WHERE user_id = ? ORDER BY id ASC", (user_id,))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+def add_user_watchlist_item(user_id: int, token: str, symbol: str, name: str, exchange: str = "NFO", type_: str = "FUT", strike: float = 0.0, lot: int = 1):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR IGNORE INTO watchlists (user_id, token, symbol, name, exchange, type, strike, lot)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, str(token), symbol, name, exchange, type_, strike, lot))
+    conn.commit()
+    conn.close()
+    return True
+
+def delete_user_watchlist_item(user_id: int, token: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM watchlists WHERE user_id = ? AND token = ?", (user_id, str(token)))
+    conn.commit()
+    conn.close()
+    return True
+
+def register_user(username: str, pin: str, display_name: str = None):
+    username_clean = username.strip().upper()
+    pin_clean = str(pin).strip()
+    if not username_clean or not pin_clean:
+        return {"success": False, "message": "Username and Password/PIN cannot be empty."}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username_clean,))
+    if cursor.fetchone():
+        conn.close()
+        return {"success": False, "message": f"User ID '{username_clean}' already exists. Please choose a different Username."}
+
+    # Assign next desk number
+    cursor.execute("SELECT MAX(desk_no) FROM users WHERE role = 'trader'")
+    row = cursor.fetchone()
+    next_desk = (row[0] or 0) + 1 if row else 1
+
+    dname = display_name.strip() if display_name else f"Trader {username_clean} (Desk {next_desk})"
+
+    cursor.execute("""
+        INSERT INTO users (username, display_name, pin, desk_no, role, total_capital, available_margin, used_margin, realised_pnl)
+        VALUES (?, ?, ?, ?, 'trader', 10000000.0, 10000000.0, 0.0, 0.0)
+    """, (username_clean, dname, pin_clean, next_desk))
+    new_user_id = cursor.lastrowid
+
+    # Create initial capital allocation ledger entry
+    now_date = datetime.now().strftime("%Y-%m-%d")
+    now_time = datetime.now().strftime("%H:%M:%S")
+    cursor.execute("""
+        INSERT INTO ledger (user_id, date, time, particulars, voucher_type, debit, credit, balance)
+        VALUES (?, ?, ?, 'Opening Virtual Capital Allocation', 'RECEIPT', 0.0, 10000000.0, 10000000.0)
+    """, (new_user_id, now_date, now_time))
+
+    conn.commit()
+
+    # Fetch created user
+    cursor.execute("SELECT * FROM users WHERE id = ?", (new_user_id,))
+    user_record = dict(cursor.fetchone())
+    user_record["pin_verified"] = pin_clean
+    conn.close()
+
+    return {"success": True, "user": user_record, "message": f"Trader {username_clean} registered successfully with ₹1,00,00,000 Capital!"}
+
 if __name__ == "__main__":
     init_db()
-    print("Database schema successfully upgraded with 18 Office Traders & Ledger!")
+    print("Database schema successfully upgraded with watchlists & user registration!")

@@ -92,69 +92,138 @@
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
       
       <!-- Login Top Header -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 text-center border-b border-slate-700">
-        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 mx-auto flex items-center justify-center text-white shadow-lg font-black text-xl mb-3">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 text-center border-b border-slate-700">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 mx-auto flex items-center justify-center text-white shadow-lg font-black text-xl mb-2">
           EV
         </div>
         <h2 class="text-xl font-extrabold tracking-tight">Evemeria Virtual F&O</h2>
-        <p class="text-xs text-slate-400 mt-1">100% Real Live Market Trading Terminal</p>
+        <p class="text-[11px] text-slate-400 mt-0.5">Real Live Market Multi-User Trading Terminal</p>
+      </div>
+
+      <!-- Auth Switcher Tabs (Sign In vs Create Account) -->
+      <div class="flex border-b border-slate-200 bg-slate-50 text-xs font-bold">
+        <button type="button" onclick="setAuthTab('login')" id="auth-tab-login" class="flex-1 py-3 text-center border-b-2 border-orange-600 text-orange-600 transition-colors">
+          Trader Sign In
+        </button>
+        <button type="button" onclick="setAuthTab('register')" id="auth-tab-register" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition-colors">
+          Create New Trader Account ✨
+        </button>
       </div>
 
       <!-- Login Form Body -->
       <div class="p-6 space-y-4 text-xs">
         <div id="login-error-msg" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg font-semibold text-xs text-center"></div>
 
-        <div>
-          <label class="block text-slate-700 font-bold mb-1.5 text-xs">Trader ID / Admin Username</label>
-          <div class="relative">
-            <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+        <!-- 1. SIGN IN FORM -->
+        <div id="auth-form-login" class="space-y-4">
+          <div>
+            <label class="block text-slate-700 font-bold mb-1.5 text-xs">Trader ID / Username</label>
+            <div class="relative">
+              <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+              <input 
+                type="text" 
+                id="login-username" 
+                placeholder="e.g. TRADER01 or ADMIN" 
+                value="TRADER01"
+                class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue font-mono uppercase text-sm"
+              >
+            </div>
+            <div class="text-[11px] text-slate-400 mt-1">Traders: <strong>TRADER01</strong> to <strong>TRADER18</strong> | Admin: <strong>ADMIN</strong></div>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 font-bold mb-1.5 text-xs">Account Password / PIN</label>
+            <div class="relative">
+              <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+              <input 
+                type="password" 
+                id="login-pin" 
+                placeholder="PIN" 
+                value="1234"
+                class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue font-mono text-sm tracking-widest"
+              >
+            </div>
+            <div class="text-[11px] text-slate-400 mt-1">Default PIN: <strong>1234</strong> (Admin PIN: <strong>9999</strong>)</div>
+          </div>
+
+          <button 
+            type="button"
+            onclick="handleLoginSubmit()" 
+            id="btn-login-submit" 
+            class="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-extrabold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2"
+          >
+            <span>Login to Trading Desk</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- 2. REGISTRATION FORM (NEW TRADER) -->
+        <div id="auth-form-register" class="hidden space-y-3.5">
+          <div>
+            <label class="block text-slate-700 font-bold mb-1 text-xs">Choose Your Username / Trader ID *</label>
+            <div class="relative">
+              <i data-lucide="user-plus" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input 
+                type="text" 
+                id="reg-username" 
+                placeholder="e.g. RAHUL, AMIT_FUT" 
+                class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue font-mono uppercase text-sm"
+              >
+            </div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Unique ID you will use to login.</div>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 font-bold mb-1 text-xs">Your Full Name (Display Name)</label>
             <input 
               type="text" 
-              id="login-username" 
-              placeholder="e.g. TRADER01 or ADMIN" 
-              value="TRADER01"
-              class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue font-mono uppercase text-sm"
+              id="reg-display-name" 
+              placeholder="e.g. Rahul Sharma" 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-evemeria-blue text-xs font-semibold"
             >
           </div>
-          <div class="text-[11px] text-slate-400 mt-1">Traders: <strong>TRADER01</strong> to <strong>TRADER18</strong> | Admin: <strong>ADMIN</strong></div>
-        </div>
 
-        <div>
-          <label class="block text-slate-700 font-bold mb-1.5 text-xs">Account Security PIN</label>
-          <div class="relative">
-            <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-            <input 
-              type="password" 
-              id="login-pin" 
-              placeholder="PIN" 
-              value="1234"
-              class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue focus:ring-1 focus:ring-evemeria-blue font-mono text-sm tracking-widest"
-            >
+          <div>
+            <label class="block text-slate-700 font-bold mb-1 text-xs">Create Password / PIN *</label>
+            <div class="relative">
+              <i data-lucide="key" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input 
+                type="password" 
+                id="reg-pin" 
+                placeholder="e.g. 1234 or your secret password" 
+                class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-900 focus:outline-none focus:border-evemeria-blue text-sm font-mono"
+              >
+            </div>
           </div>
-          <div class="text-[11px] text-slate-400 mt-1">Default PIN: <strong>1234</strong> (Admin PIN: <strong>9999</strong>)</div>
-        </div>
 
-        <button 
-          onclick="handleLoginSubmit()" 
-          id="btn-login-submit" 
-          class="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-extrabold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2"
-        >
-          <span>Login to Trading Desk</span>
-          <i data-lucide="arrow-right" class="w-4 h-4"></i>
-        </button>
+          <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-800 flex items-center gap-1.5 font-medium">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+            <span>Instantly allocated <strong>₹1,00,00,000 (1 Crore)</strong> virtual capital + Private Watchlist!</span>
+          </div>
+
+          <button 
+            type="button"
+            onclick="handleRegisterSubmit()" 
+            id="btn-register-submit" 
+            class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 mt-1"
+          >
+            <span>Create Account & Start Trading</span>
+            <i data-lucide="check" class="w-4 h-4"></i>
+          </button>
+        </div>
 
         <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
           <div class="flex items-center gap-1.5">
             <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
-            <span>Fixed ₹1 Crore Capital per Trader</span>
+            <span>Fixed ₹1 Crore Capital per Trader Desk</span>
           </div>
           <div class="flex items-center gap-1.5">
             <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
-            <span>Strict RMS: Max 1% Per-Trade Risk & 1% Daily MTM Cut</span>
+            <span>Isolated Personal Watchlist for Every Trader</span>
           </div>
           <div class="flex items-center gap-1.5">
             <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
-            <span>SPAN Portfolio Margin Discount for Hedged Futures & Options</span>
+            <span>Intraday MIS Auto Square-off & 1% Daily Risk Engine</span>
           </div>
         </div>
       </div>
@@ -197,9 +266,9 @@
     <!-- Center: Live Feed Status & Admin Portal Tab Button (Admin Only) -->
     <div class="flex items-center space-x-2 md:space-x-3">
       <!-- Market Status -->
-      <div id="market-status-badge" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+      <div id="market-status-badge" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
         <span id="market-dot" class="w-2 h-2 rounded-full bg-gray-400"></span>
-        <span id="market-status-text">Market OPEN</span>
+        <span id="market-status-text">Market Status</span>
       </div>
 
       <!-- Admin Master Portal Button (Visible ONLY to Admin) -->
@@ -208,8 +277,8 @@
         <span>Admin Console (18 Desks)</span>
       </button>
 
-      <!-- Angel One Connect Status -->
-      <button onclick="openAngelModal()" id="btn-angel-connect" class="flex items-center space-x-1.5 px-2.5 md:px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-evemeria-blue border border-blue-200 transition-colors">
+      <!-- Angel One Connect Status (Visible ONLY to Admin) -->
+      <button onclick="openAngelModal()" id="btn-angel-connect" class="hidden items-center space-x-1.5 px-2.5 md:px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-evemeria-blue border border-blue-200 transition-colors">
         <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
         <span id="angel-status-text" class="hidden sm:inline">Angel One API</span>
       </button>
@@ -700,6 +769,82 @@
           </div>
         </div>
 
+        <!-- All Traders Open Positions Master Table -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="layers" class="w-4 h-4 text-evemeria-blue"></i>
+              <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wide">All Traders Open Positions</h3>
+              <span id="admin-open-positions-count" class="bg-blue-100 text-evemeria-blue text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+            </div>
+            <button onclick="refreshAdminAllPositions()" class="text-xs text-evemeria-blue hover:underline font-bold flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh Positions</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="bg-slate-100 text-gray-600 font-bold border-b border-gray-200 font-sans">
+                <tr>
+                  <th class="py-2.5 px-3 text-center">Desk</th>
+                  <th class="py-2.5 px-3">Trader</th>
+                  <th class="py-2.5 px-3">Product</th>
+                  <th class="py-2.5 px-4">Instrument</th>
+                  <th class="py-2.5 px-3 text-right">Qty</th>
+                  <th class="py-2.5 px-3 text-right">Avg Price</th>
+                  <th class="py-2.5 px-3 text-right">LTP</th>
+                  <th class="py-2.5 px-4 text-right">Unrealised P&L</th>
+                </tr>
+              </thead>
+              <tbody id="admin-all-positions-table-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="8" class="text-center py-6 text-gray-400 font-sans">No open positions across any desk.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- All Traders Closed Trades Audit Log -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="history" class="w-4 h-4 text-emerald-600"></i>
+              <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wide">All Traders Closed Trades Log</h3>
+              <span id="admin-closed-trades-count" class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+            </div>
+            <button onclick="refreshAdminAllClosedTrades()" class="text-xs text-emerald-600 hover:underline font-bold flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh Closed Trades</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto max-h-96">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="bg-slate-100 text-gray-600 font-bold border-b border-gray-200 font-sans sticky top-0">
+                <tr>
+                  <th class="py-2.5 px-3 text-center">Desk</th>
+                  <th class="py-2.5 px-3">Trader</th>
+                  <th class="py-2.5 px-4">Instrument</th>
+                  <th class="py-2.5 px-3">Product</th>
+                  <th class="py-2.5 px-3 text-right">Qty</th>
+                  <th class="py-2.5 px-3 text-right">Buy Avg</th>
+                  <th class="py-2.5 px-3 text-right">Sell Avg</th>
+                  <th class="py-2.5 px-4 text-right">Realised P&L</th>
+                  <th class="py-2.5 px-3 text-center">Exit Reason</th>
+                  <th class="py-2.5 px-4 text-right">Exit Time</th>
+                </tr>
+              </thead>
+              <tbody id="admin-all-closed-trades-table-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="10" class="text-center py-6 text-gray-400 font-sans">No closed trades recorded yet today.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
     </main>
@@ -1184,6 +1329,86 @@
     }
 
     /* ================= LOGIN & AUTHENTICATION ================= */
+    function setAuthTab(tab) {
+      const tabLogin = document.getElementById('tab-auth-login');
+      const tabReg = document.getElementById('tab-auth-register');
+      const formLogin = document.getElementById('auth-form-login');
+      const formReg = document.getElementById('auth-form-register');
+      const errEl = document.getElementById('login-error-msg');
+      if (errEl) errEl.classList.add('hidden');
+
+      if (tab === 'register') {
+        if (tabReg) {
+          tabReg.className = 'flex-1 py-2 text-xs font-bold text-center border-b-2 border-emerald-600 text-emerald-600 transition-all';
+        }
+        if (tabLogin) {
+          tabLogin.className = 'flex-1 py-2 text-xs font-semibold text-center text-slate-400 hover:text-slate-600 transition-all';
+        }
+        if (formLogin) formLogin.classList.add('hidden');
+        if (formReg) formReg.classList.remove('hidden');
+      } else {
+        if (tabLogin) {
+          tabLogin.className = 'flex-1 py-2 text-xs font-bold text-center border-b-2 border-orange-600 text-orange-600 transition-all';
+        }
+        if (tabReg) {
+          tabReg.className = 'flex-1 py-2 text-xs font-semibold text-center text-slate-400 hover:text-slate-600 transition-all';
+        }
+        if (formReg) formReg.classList.add('hidden');
+        if (formLogin) formLogin.classList.remove('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    async function handleRegisterSubmit() {
+      const username = (document.getElementById('reg-username')?.value || '').trim();
+      const displayName = (document.getElementById('reg-display-name')?.value || '').trim();
+      const pin = (document.getElementById('reg-pin')?.value || '').trim();
+      const errEl = document.getElementById('login-error-msg');
+      const btn = document.getElementById('btn-register-submit');
+
+      if (errEl) errEl.classList.add('hidden');
+      if (!username || !pin) {
+        if (errEl) {
+          errEl.textContent = 'Please provide both Username and Password/PIN.';
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>Creating Desk...</span>`;
+
+      try {
+        const res = await apiPost('/api/auth/register', {
+          username: username,
+          pin: pin,
+          display_name: displayName || username
+        });
+        if (res && res.success) {
+          currentUser = res.user;
+          localStorage.setItem('evemeria_active_user', JSON.stringify(currentUser));
+          document.getElementById('login-screen-modal').classList.add('hidden');
+          setupUserSessionUI();
+          await loadData();
+          showToast(`Account created! Assigned Desk ${currentUser.desk_no} with ₹1 Cr Capital`, 'success');
+        } else {
+          if (errEl) {
+            errEl.textContent = res?.detail || res?.message || 'Registration failed.';
+            errEl.classList.remove('hidden');
+          }
+        }
+      } catch (e) {
+        if (errEl) {
+          errEl.textContent = 'Connection error: ' + e.message;
+          errEl.classList.remove('hidden');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Create Account & Start Trading</span><i data-lucide="check" class="w-4 h-4"></i>`;
+        lucide.createIcons();
+      }
+    }
+
     async function handleLoginSubmit() {
       const usernameInput = document.getElementById('login-username').value.trim();
       const pinInput = document.getElementById('login-pin').value.trim();
@@ -1229,12 +1454,22 @@
         currentUser = null;
         document.getElementById('login-screen-modal').classList.remove('hidden');
         document.getElementById('login-error-msg').classList.add('hidden');
+        const angelBtn = document.getElementById('btn-angel-connect');
+        if (angelBtn) {
+          angelBtn.classList.add('hidden');
+          angelBtn.classList.remove('flex');
+        }
       }
     }
 
     function setupUserSessionUI() {
       if (!currentUser) {
         document.getElementById('login-screen-modal').classList.remove('hidden');
+        const angelBtn = document.getElementById('btn-angel-connect');
+        if (angelBtn) {
+          angelBtn.classList.add('hidden');
+          angelBtn.classList.remove('flex');
+        }
         return;
       }
       document.getElementById('login-screen-modal').classList.add('hidden');
@@ -1242,6 +1477,7 @@
       const deskEl = document.getElementById('header-desk-label');
       const avatarEl = document.getElementById('header-avatar-badge');
       const adminBtn = document.getElementById('header-admin-portal-btn');
+      const angelBtn = document.getElementById('btn-angel-connect');
       const traderNav = document.getElementById('trader-nav-tabs');
 
       if (currentUser.role === 'admin') {
@@ -1252,6 +1488,10 @@
           avatarEl.className = 'w-8 h-8 rounded-full bg-purple-600 text-white font-extrabold text-xs flex items-center justify-center border border-purple-400 shadow-md';
         }
         if (adminBtn) adminBtn.classList.remove('hidden');
+        if (angelBtn) {
+          angelBtn.classList.remove('hidden');
+          angelBtn.classList.add('flex');
+        }
         switchTab('admin');
       } else {
         // Trader Isolated View Setup
@@ -1261,6 +1501,10 @@
           avatarEl.className = 'w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-extrabold text-xs flex items-center justify-center border border-orange-200 shadow-sm';
         }
         if (adminBtn) adminBtn.classList.add('hidden');
+        if (angelBtn) {
+          angelBtn.classList.add('hidden');
+          angelBtn.classList.remove('flex');
+        }
         switchTab('positions');
       }
     }
@@ -1318,7 +1562,8 @@
     }
 
     async function fetchLiveWatchlist() {
-      const res = await apiGet('/api/watchlist');
+      const userIdParam = currentUser ? `?user_id=${currentUser.id}` : '';
+      const res = await apiGet('/api/watchlist' + userIdParam);
       if (res) {
         if (res.indices) {
           const n = res.indices.NIFTY;
@@ -1338,7 +1583,11 @@
             bnChgEl.className = `${bnPos ? 'text-evemeria-green' : 'text-evemeria-red'} font-semibold font-mono`;
           }
         }
-        if (res.watchlist && res.watchlist.length > 0) {
+        if (res.market_status) {
+          state.marketStatus = res.market_status;
+          updateMarketStatusHeader();
+        }
+        if (res.watchlist) {
           state.watchlist = res.watchlist;
           renderWatchlist();
         }
@@ -1406,11 +1655,14 @@
     }
 
     async function addContractFromSearch(token, symbol, name, type, strike, lot) {
-      const res = await apiPost('/api/watchlist/add', { token, symbol, name, type, strike, lot });
+      const res = await apiPost('/api/watchlist/add', {
+        user_id: currentUser ? currentUser.id : 1,
+        token, symbol, name, type, strike, lot
+      });
       if (res && res.success) {
         await fetchLiveWatchlist();
         clearSearch();
-        showToast(`Added ${name} to Watchlist`, 'success');
+        showToast(`Added ${name} to your private Watchlist`, 'success');
       }
     }
 
@@ -1455,7 +1707,8 @@
     async function deleteFromWatchlist(token, event) {
       if (event) event.stopPropagation();
       try {
-        await fetch(API_BASE + `/api/watchlist/${token}`, { method: 'DELETE' });
+        const userIdParam = currentUser ? `?user_id=${currentUser.id}` : '';
+        await fetch(API_BASE + `/api/watchlist/${token}` + userIdParam, { method: 'DELETE' });
         state.watchlist = state.watchlist.filter(w => String(w.token) !== String(token));
         renderWatchlist();
         showToast('Removed from Watchlist', 'info');
@@ -1472,12 +1725,12 @@
 
       if (state.marketStatus.is_open) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-        text.textContent = 'Market OPEN (Live Ticks)';
-        badge.className = 'hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        text.textContent = 'Market OPEN (Live)';
+        badge.className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
       } else {
-        dot.className = 'w-2 h-2 rounded-full bg-gray-400';
-        text.textContent = 'Market CLOSED';
-        badge.className = 'hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200';
+        dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        text.textContent = 'Market CLOSED (Opens 9:15 AM IST)';
+        badge.className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200';
       }
 
       if (state.marketStatus.is_connected) {
@@ -1568,23 +1821,30 @@
 
           const isGroupPos = group.total_pnl >= 0;
           const groupCard = document.createElement('div');
-          groupCard.className = 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden';
+          groupCard.className = 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-4';
+
+          const sym = group.symbol || group.strategy_id || 'F&O';
+          const hedgeBadge = group.is_hedged ? 
+            `<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-emerald-200">
+               <i data-lucide="shield-check" class="w-3 h-3"></i> Hedged / Multi-Leg
+             </span>` : '';
 
           groupCard.innerHTML = `
             <div class="p-3 bg-slate-50 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center space-x-3">
                 <span class="w-3 h-3 rounded-full" style="background-color: ${group.color}"></span>
                 <span class="font-extrabold text-xs text-gray-800 tracking-wide uppercase">${group.name}</span>
-                <span class="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold">${group.positions.length} position${group.positions.length > 1 ? 's' : ''}</span>
+                <span class="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-bold">${group.positions.length} leg${group.positions.length > 1 ? 's' : ''}</span>
+                ${hedgeBadge}
               </div>
               <div class="flex items-center space-x-4">
                 <div class="text-right">
-                  <span class="text-[10px] text-gray-400 font-semibold uppercase">Group P&L:</span>
+                  <span class="text-[10px] text-gray-400 font-semibold uppercase">Group MTM:</span>
                   <span class="font-extrabold text-xs ml-1 font-mono ${isGroupPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
                     ${isGroupPos ? '+' : ''}₹${group.total_pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <button onclick="exitStrategyGroup('${group.strategy_id}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 rounded text-[11px] font-bold border border-rose-200 transition-colors">
+                <button onclick="exitSymbolGroup('${sym}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 rounded text-[11px] font-bold border border-rose-200 transition-colors">
                   Exit Group
                 </button>
               </div>
@@ -1595,7 +1855,7 @@
                 <thead class="bg-slate-100 text-gray-500 font-semibold border-b border-gray-200 text-[11px] font-sans">
                   <tr>
                     <th class="py-2.5 px-3 w-10 text-center">
-                      <input type="checkbox" onchange="toggleSelectGroup('${group.strategy_id}', this.checked)" class="rounded border-gray-300 text-evemeria-blue">
+                      <input type="checkbox" onchange="toggleSelectGroup('${sym}', this.checked)" class="rounded border-gray-300 text-evemeria-blue">
                     </th>
                     <th class="py-2.5 px-3">Product</th>
                     <th class="py-2.5 px-4">Instrument</th>
@@ -1657,8 +1917,8 @@
       updateSelectionUI();
     }
 
-    function toggleSelectGroup(stratId, checked) {
-      const group = state.groupedPositions.find(g => g.strategy_id === stratId);
+    function toggleSelectGroup(groupKey, checked) {
+      const group = state.groupedPositions.find(g => (g.symbol === groupKey || g.strategy_id === groupKey));
       if (group) {
         group.positions.forEach(p => {
           if (checked) state.selectedPositions.add(p.id);
@@ -1708,14 +1968,20 @@
       await loadData();
     }
 
-    async function exitStrategyGroup(stratId) {
-      if (!confirm('Square off all positions under this strategy?')) return;
-      const res = await apiPost('/api/positions/exit-strategy', { strategy_id: stratId, user_id: currentUser.id });
+    async function exitSymbolGroup(symbol) {
+      if (!confirm(`Square off all open positions under ${symbol} Group at market price?`)) return;
+      const res = await apiPost('/api/positions/exit-group', { symbol: symbol, user_id: currentUser.id });
       if (res && res.success) {
         playOrderDing();
         showToast(res.message, 'info');
         await loadData();
+      } else {
+        alert(res?.detail || 'Failed to exit group');
       }
+    }
+
+    async function exitStrategyGroup(stratId) {
+      return exitSymbolGroup(stratId);
     }
 
     async function exitAllPositions() {
@@ -2269,6 +2535,10 @@
       document.getElementById('admin-total-open-pos').textContent = totalOpenPos;
       document.getElementById('admin-active-desks-count').textContent = `${18 - lockedCount} / 18`;
       document.getElementById('admin-locked-desks-count').textContent = lockedCount;
+
+      // Also refresh Consolidated All Positions & Closed Trades Tables
+      await refreshAdminAllPositions();
+      await refreshAdminAllClosedTrades();
     }
 
     async function adminInspectTraderLedger(deskNo, username) {
@@ -2334,6 +2604,89 @@
       } else {
         alert(res?.detail || 'Failed to reset');
       }
+    }
+
+    /* Admin Consolidated Views */
+    async function refreshAdminAllPositions() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      const pin = currentUser.pin_verified || '9999';
+      const positions = await apiGet(`/api/admin/all-positions?admin_pin=${encodeURIComponent(pin)}`);
+      const tbody = document.getElementById('admin-all-positions-table-body');
+      const badge = document.getElementById('admin-open-positions-count');
+      if (!tbody) return;
+
+      if (!positions || positions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-gray-400 font-sans">No open positions across any desk.</td></tr>`;
+        if (badge) badge.textContent = '0';
+        return;
+      }
+
+      if (badge) badge.textContent = positions.length;
+      tbody.innerHTML = '';
+
+      positions.forEach(p => {
+        const isPos = p.pnl >= 0;
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 border-b border-gray-100';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-center font-bold font-sans">
+            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">Desk ${String(p.desk_no).padStart(2, '0')}</span>
+          </td>
+          <td class="py-2.5 px-3 font-bold text-gray-900 font-sans">${p.username}</td>
+          <td class="py-2.5 px-3 font-sans">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${p.product === 'NRML' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}">${p.product}</span>
+          </td>
+          <td class="py-2.5 px-4 font-bold text-gray-900 font-sans">${p.name}</td>
+          <td class="py-2.5 px-3 text-right font-extrabold ${p.qty > 0 ? 'text-evemeria-blue' : 'text-orange-600'}">${p.qty > 0 ? '+' : ''}${p.qty}</td>
+          <td class="py-2.5 px-3 text-right text-gray-600">₹${p.avg_price.toFixed(2)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-gray-900">₹${p.ltp.toFixed(2)}</td>
+          <td class="py-2.5 px-4 text-right font-black ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+            ${isPos ? '+' : ''}₹${p.pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function refreshAdminAllClosedTrades() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      const pin = currentUser.pin_verified || '9999';
+      const trades = await apiGet(`/api/admin/all-closed-trades?admin_pin=${encodeURIComponent(pin)}`);
+      const tbody = document.getElementById('admin-all-closed-trades-table-body');
+      const badge = document.getElementById('admin-closed-trades-count');
+      if (!tbody) return;
+
+      if (!trades || trades.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-gray-400 font-sans">No closed trades recorded yet today.</td></tr>`;
+        if (badge) badge.textContent = '0';
+        return;
+      }
+
+      if (badge) badge.textContent = trades.length;
+      tbody.innerHTML = '';
+
+      trades.forEach(t => {
+        const isPos = t.pnl >= 0;
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 border-b border-gray-100';
+        tr.innerHTML = `
+          <td class="py-2 px-3 text-center font-sans">
+            <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">D${String(t.desk_no).padStart(2, '0')}</span>
+          </td>
+          <td class="py-2 px-3 font-bold text-gray-900 font-sans">${t.username}</td>
+          <td class="py-2 px-4 font-bold text-gray-900 font-sans">${t.name}</td>
+          <td class="py-2 px-3 font-sans"><span class="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700">${t.product}</span></td>
+          <td class="py-2 px-3 text-right font-extrabold">${t.qty}</td>
+          <td class="py-2 px-3 text-right text-gray-600">₹${t.buy_avg.toFixed(2)}</td>
+          <td class="py-2 px-3 text-right text-gray-600">₹${t.exit_avg.toFixed(2)}</td>
+          <td class="py-2 px-4 text-right font-black ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+            ${isPos ? '+' : ''}₹${t.pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </td>
+          <td class="py-2 px-3 text-center text-[10px] text-gray-500 font-sans">${t.exit_reason || 'MANUAL'}</td>
+          <td class="py-2 px-4 text-right text-gray-400 text-[11px] font-mono">${t.time || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     /* Tab Switching (Desktop) */

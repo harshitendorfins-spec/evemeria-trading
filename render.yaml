@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: evemeria-trading
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py

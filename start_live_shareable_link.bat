@@ -6,17 +6,36 @@ echo ===================================================================
 echo   EVEMERIA VIRTUAL F^&O - LIVE MARKET TRADING TERMINAL
 echo ===================================================================
 echo.
-echo 1. Checking / Starting Evemeria Server...
+echo 1. Checking Python Environment...
+set PYTHON_CMD=python
 set VENV_PYTHON="..\.venv\Scripts\python.exe"
 
-start "Evemeria Server" /min %VENV_PYTHON% app.py
+if exist %VENV_PYTHON% (
+    set PYTHON_CMD=%VENV_PYTHON%
+) else (
+    where python >nul 2>nul
+    if errorlevel 1 (
+        set PYTHON_CMD=py
+    )
+)
+
+echo 2. Starting Evemeria Trading Engine & API Server on Port 8080...
+start "Evemeria Server" /min %PYTHON_CMD% app.py
 
 timeout /t 3 /nobreak >nul
 
-echo 2. Launching Cloudflare Tunnel for Live Public Link...
-echo.
-echo Connect your phone or share this link with your 18 traders!
+echo 3. Launching Cloudflare Tunnel for Live Public Link...
 echo ===================================================================
-.\cloudflared.exe tunnel --url http://127.0.0.1:8080
+echo NOTE: Below you will see a public https://....trycloudflare.com link.
+echo Share that link with your traders or open on mobile phone!
+echo ===================================================================
+echo.
+
+if exist ".\cloudflared.exe" (
+    .\cloudflared.exe tunnel --url http://127.0.0.1:8080
+) else (
+    echo [ERROR] cloudflared.exe not found in current folder!
+    pause
+)
 
 pause
