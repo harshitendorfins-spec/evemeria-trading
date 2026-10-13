@@ -1,0 +1,15 @@
+[build]
+  publish = "."
+
+# Reverse proxy all /api requests to Render backend (Zero CORS issues)
+[[redirects]]
+  from = "/api/*"
+  to = "https://evemeria-trading.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# Single Page App routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

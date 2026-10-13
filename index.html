@@ -213,6 +213,12 @@
         <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
         <span id="angel-status-text" class="hidden sm:inline">Angel One API</span>
       </button>
+
+      <!-- Real-Time WebSocket Live Indicator -->
+      <div id="ws-status-badge" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 transition-colors">
+        <span id="ws-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <span id="ws-status-text">WS Connecting</span>
+      </div>
     </div>
 
     <!-- Right: Navigation Tabs & Isolated Profile -->
@@ -1078,7 +1084,22 @@
 
   <!-- ================= JAVASCRIPT LOGIC ================= -->
   <script>
-    const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8080' : '';
+    // Backend API Base URL Resolver (Supports Netlify Proxy, Custom Render Backend & Localhost)
+    let API_BASE = '';
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramBackend = urlParams.get('backend');
+    if (paramBackend) {
+      localStorage.setItem('evemeria_backend_url', paramBackend.replace(/\/$/, ''));
+    }
+    const savedBackend = localStorage.getItem('evemeria_backend_url');
+
+    if (savedBackend) {
+      API_BASE = savedBackend;
+    } else if (window.location.protocol === 'file:') {
+      API_BASE = 'http://127.0.0.1:8080';
+    } else {
+      API_BASE = '';
+    }
 
     // Active User (Null until logged in)
     let currentUser = null;
@@ -1413,8 +1434,8 @@
             <div class="text-[10px] text-gray-400 font-medium font-mono">${item.type || 'F&O'} • Lot ${item.lot}</div>
           </div>
           <div class="row-price-meta text-right flex-shrink-0 font-mono">
-            <div class="wl-price text-xs font-bold text-gray-900">${(item.ltp || 0).toFixed(2)}</div>
-            <div class="wl-chg text-[10px] font-semibold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+            <div id="wl-price-${item.token}" class="wl-price text-xs font-bold text-gray-900">${(item.ltp || 0).toFixed(2)}</div>
+            <div id="wl-chg-${item.token}" class="wl-chg text-[10px] font-semibold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
               ${isPos ? '+' : ''}${chgAmt.toFixed(2)} (${isPos ? '+' : ''}${chgPct}%)
             </div>
           </div>
@@ -1605,9 +1626,9 @@
                         <td class="py-2 px-4 font-bold text-gray-900 font-sans">${p.name}</td>
                         <td class="py-2 px-4 text-right font-extrabold ${p.qty > 0 ? 'text-evemeria-blue' : 'text-orange-600'}">${p.qty > 0 ? '+' : ''}${p.qty}</td>
                         <td class="py-2 px-4 text-right text-gray-600">₹${p.avg_price.toFixed(2)}</td>
-                        <td class="py-2 px-4 text-right font-bold text-gray-900">₹${p.ltp.toFixed(2)}</td>
+                        <td id="pos-ltp-${p.id}" class="py-2 px-4 text-right font-bold text-gray-900">₹${p.ltp.toFixed(2)}</td>
                         <td class="py-2 px-4 text-center text-[10px] text-gray-500">${bracketInfo}</td>
-                        <td class="py-2 px-4 text-right font-extrabold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
+                        <td id="pos-pnl-${p.id}" class="py-2 px-4 text-right font-extrabold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}">
                           ${isPos ? '+' : ''}₹${p.pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
                         <td class="py-2 px-4 text-center font-sans">
@@ -2391,12 +2412,192 @@
       }, 3500);
     }
 
+    /* ================= REAL-TIME WEBSOCKET TIER ================= */
+    let appWs = null;
+    let isWsConnected = false;
+
+    function updateWsStatusBadge(connected) {
+      const badge = document.getElementById('ws-status-badge');
+      const dot = document.getElementById('ws-dot');
+      const text = document.getElementById('ws-status-text');
+      if (!badge || !dot || !text) return;
+
+      if (connected) {
+        badge.className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-xs transition-colors';
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        text.textContent = '⚡ LIVE WEBSOCKET';
+      } else {
+        badge.className = 'flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-300 transition-colors';
+        dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping';
+        text.textContent = 'WS Connecting...';
+      }
+    }
+
+    function initWebSocket() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      let wsHost = window.location.host;
+      if (API_BASE && (API_BASE.startsWith('http://') || API_BASE.startsWith('https://'))) {
+        wsHost = API_BASE.replace(/^https?:\/\//, '');
+      }
+      const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+
+      try {
+        if (appWs) {
+          appWs.onclose = null;
+          appWs.close();
+        }
+        appWs = new WebSocket(wsUrl);
+
+        appWs.onopen = () => {
+          console.log('[WebSocket] Connected directly to Evemeria live stream!');
+          isWsConnected = true;
+          updateWsStatusBadge(true);
+        };
+
+        appWs.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'tick') {
+              handleWsLiveTick(data);
+            } else if (data.type === 'snapshot') {
+              handleWsSnapshot(data);
+            }
+          } catch (e) {
+            console.error('[WebSocket] Parse Error:', e);
+          }
+        };
+
+        appWs.onclose = () => {
+          isWsConnected = false;
+          updateWsStatusBadge(false);
+          setTimeout(initWebSocket, 2000);
+        };
+
+        appWs.onerror = () => {
+          isWsConnected = false;
+          updateWsStatusBadge(false);
+        };
+      } catch (err) {
+        console.error('[WebSocket] Setup Error:', err);
+        setTimeout(initWebSocket, 3000);
+      }
+    }
+
+    function handleWsSnapshot(snap) {
+      if (snap.indices) updateIndicesUI(snap.indices);
+      if (snap.watchlist && snap.watchlist.length > 0) {
+        state.watchlist = snap.watchlist;
+        renderWatchlist();
+      }
+    }
+
+    function updateIndicesUI(indices) {
+      if (indices.NIFTY && document.getElementById('ticker-nifty-ltp')) {
+        const n = indices.NIFTY;
+        document.getElementById('ticker-nifty-ltp').textContent = n.ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        const nChgEl = document.getElementById('ticker-nifty-chg');
+        const nPos = n.chg >= 0;
+        nChgEl.textContent = `${nPos ? '+' : ''}${n.chg.toFixed(2)} (${nPos ? '+' : ''}${n.chg_pct}%)`;
+        nChgEl.className = `${nPos ? 'text-evemeria-green' : 'text-evemeria-red'} font-semibold font-mono`;
+      }
+      if (indices.BANKNIFTY && document.getElementById('ticker-banknifty-ltp')) {
+        const bn = indices.BANKNIFTY;
+        document.getElementById('ticker-banknifty-ltp').textContent = bn.ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        const bnChgEl = document.getElementById('ticker-banknifty-chg');
+        const bnPos = bn.chg >= 0;
+        bnChgEl.textContent = `${bnPos ? '+' : ''}${bn.chg.toFixed(2)} (${bnPos ? '+' : ''}${bn.chg_pct}%)`;
+        bnChgEl.className = `${bnPos ? 'text-evemeria-green' : 'text-evemeria-red'} font-semibold font-mono`;
+      }
+    }
+
+    function handleWsLiveTick(tick) {
+      const token = String(tick.token);
+      const ltp = tick.ltp;
+      const chg = tick.chg;
+      const chg_pct = tick.chg_pct;
+
+      // Update Indices
+      if (tick.indices) {
+        updateIndicesUI(tick.indices);
+      }
+
+      // 1. In-place Watchlist update
+      const wItem = state.watchlist.find(w => String(w.token) === token);
+      if (wItem) {
+        const prevLtp = wItem.ltp;
+        wItem.ltp = ltp;
+        wItem.close = tick.close;
+        wItem.chg = chg;
+        wItem.chg_pct = chg_pct;
+
+        const priceEl = document.getElementById(`wl-price-${token}`);
+        const chgEl = document.getElementById(`wl-chg-${token}`);
+        if (priceEl) {
+          priceEl.textContent = ltp.toFixed(2);
+          priceEl.classList.remove('tick-up', 'tick-down');
+          void priceEl.offsetWidth;
+          if (ltp > prevLtp) priceEl.classList.add('tick-up');
+          else if (ltp < prevLtp) priceEl.classList.add('tick-down');
+        }
+        if (chgEl) {
+          const isPos = chg >= 0;
+          chgEl.textContent = `${isPos ? '+' : ''}${chg.toFixed(2)} (${isPos ? '+' : ''}${chg_pct}%)`;
+          chgEl.className = `wl-chg text-[10px] font-semibold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+        }
+      }
+
+      // 2. In-place Open Positions update
+      let posChanged = false;
+      state.groupedPositions.forEach(group => {
+        group.positions.forEach(pos => {
+          if (String(pos.token) === token) {
+            pos.ltp = ltp;
+            pos.pnl = (ltp - pos.avg_price) * pos.qty;
+            posChanged = true;
+
+            const posLtpEl = document.getElementById(`pos-ltp-${pos.id}`);
+            const posPnlEl = document.getElementById(`pos-pnl-${pos.id}`);
+            if (posLtpEl) posLtpEl.textContent = `₹${ltp.toFixed(2)}`;
+            if (posPnlEl) {
+              const isPos = pos.pnl >= 0;
+              posPnlEl.textContent = `${isPos ? '+' : ''}₹${pos.pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+              posPnlEl.className = `py-2 px-4 text-right font-extrabold ${isPos ? 'text-evemeria-green' : 'text-evemeria-red'}`;
+            }
+          }
+        });
+        if (posChanged) {
+          group.total_pnl = group.positions.reduce((acc, p) => acc + (p.pnl || 0), 0);
+        }
+      });
+
+      if (posChanged) {
+        // Recalculate total unrealised PnL
+        let totalUnrealised = 0;
+        state.groupedPositions.forEach(g => {
+          g.positions.forEach(p => {
+            totalUnrealised += (p.pnl || 0);
+          });
+        });
+        state.account.unrealised_pnl = totalUnrealised;
+        updateHeaderPnlDisplay();
+      }
+
+      // 3. In-place Active Order Modal update
+      if (state.activeOrderModal?.instrument && String(state.activeOrderModal.instrument.token) === token) {
+        state.activeOrderModal.instrument.ltp = ltp;
+        const modalLtpEl = document.getElementById('modal-instrument-ltp');
+        if (modalLtpEl) modalLtpEl.textContent = ltp.toFixed(2);
+        updateMarginEstimate();
+      }
+    }
+
     /* Bootstrap Application */
     window.addEventListener('DOMContentLoaded', async () => {
       setupUserSessionUI();
       if (currentUser) {
         await loadData();
       }
+      initWebSocket();
       lucide.createIcons();
 
       // Mobile initial view
@@ -2404,15 +2605,17 @@
         mobileSwitchTab('watchlist');
       }
 
-      // Live tick poll loop
+      // Live tick poll loop (Safety backup)
       setInterval(async () => {
         if (!currentUser) return;
-        await fetchLiveWatchlist();
+        if (!isWsConnected) {
+          await fetchLiveWatchlist();
+        }
         await fetchGroupedPositions();
         if (currentUser.role === 'admin' && state.currentTab === 'admin') {
           await refreshAdminDeskMonitor();
         }
-      }, 1500);
+      }, 4000);
     });
   </script>
 </body>

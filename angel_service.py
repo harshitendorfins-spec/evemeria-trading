@@ -3,13 +3,17 @@ import json
 import time
 import requests
 import pyotp
+import threading
 from datetime import datetime
 from SmartApi import SmartConnect
+from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 from database import get_connection
 
 class AngelOneService:
     def __init__(self):
         self.smart_api = None
+        self.smart_ws = None
+        self.is_ws_connected = False
         self.auth_token = None
         self.feed_token = None
         self.refresh_token = None
@@ -17,6 +21,8 @@ class AngelOneService:
         self.user_profile = None
         self.token_cache = {}
         self.live_prices = {} # { "token": ltp }
+        self.subscribed_tokens = set()
+        self.tick_callbacks = []
         self.last_sync_time = None
         self.load_saved_credentials()
 
@@ -33,10 +39,16 @@ class AngelOneService:
             self.pin = row["pin"]
             self.totp_secret = row["totp_secret"]
         else:
-            self.api_key = ""
-            self.client_id = ""
-            self.pin = ""
-            self.totp_secret = ""
+            self.api_key = os.getenv("ANGEL_API_KEY", "")
+            self.client_id = os.getenv("ANGEL_CLIENT_ID", "")
+            self.pin = os.getenv("ANGEL_PIN", "")
+            self.totp_secret = os.getenv("ANGEL_TOTP_SECRET", "")
+
+        if self.api_key and self.client_id and self.pin and self.totp_secret:
+            try:
+                self.connect(self.api_key, self.client_id, self.pin, self.totp_secret)
+            except Exception as e:
+                print(f"[Angel One Auto-Connect Note] {e}")
 
     def save_credentials(self, api_key, client_id, pin, totp_secret):
         conn = get_connection()
@@ -90,9 +102,12 @@ class AngelOneService:
                 conn.commit()
                 conn.close()
 
+                # Launch Real-Time WebSocket Streamer
+                self.start_websocket()
+
                 return {
                     "success": True, 
-                    "message": "Successfully connected to Angel One SmartAPI!",
+                    "message": "Successfully connected to Angel One SmartAPI (Live WebSocket Stream Active)!",
                     "client_id": self.client_id,
                     "name": data["data"].get("name", self.client_id)
                 }
@@ -106,6 +121,133 @@ class AngelOneService:
             self.is_authenticated = False
             print(f"[AngelOne Exception] {e}")
             return {"success": False, "message": f"Login error: {str(e)}"}
+
+    def register_tick_callback(self, cb):
+        if cb not in self.tick_callbacks:
+            self.tick_callbacks.append(cb)
+
+    def _on_ws_data(self, wsapp, data):
+        try:
+            token = str(data.get("token", ""))
+            if not token:
+                return
+            ltp = data.get("last_traded_price", 0) / 100.0
+            close = data.get("closed_price", 0) / 100.0
+            high = data.get("high_price_of_the_day", 0) / 100.0
+            low = data.get("low_price_of_the_day", 0) / 100.0
+
+            if ltp > 0:
+                self.live_prices[token] = ltp
+
+            chg = round(ltp - close, 2) if (ltp > 0 and close > 0) else 0.0
+            chg_pct = round((chg / close) * 100, 2) if (ltp > 0 and close > 0) else 0.0
+
+            tick_obj = {
+                "token": token,
+                "ltp": ltp,
+                "close": close,
+                "high": high,
+                "low": low,
+                "chg": chg,
+                "chg_pct": chg_pct,
+                "timestamp": datetime.now().strftime("%H:%M:%S")
+            }
+
+            for cb in self.tick_callbacks:
+                try:
+                    cb(tick_obj)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[Angel WS Data Error] {e}")
+
+    def _on_ws_open(self, wsapp):
+        print("[AngelOne WebSocket] Live Tick Connection Opened!")
+        self.is_ws_connected = True
+        self.resubscribe_all()
+
+    def _on_ws_close(self, wsapp):
+        print("[AngelOne WebSocket] Connection closed.")
+        self.is_ws_connected = False
+
+    def _on_ws_error(self, wsapp, error):
+        print(f"[AngelOne WebSocket Error] {error}")
+        self.is_ws_connected = False
+
+    def subscribe_tokens(self, tokens, exchange_type=2):
+        new_tokens = [str(t) for t in tokens if str(t) not in self.subscribed_tokens]
+        if not new_tokens:
+            return
+        for t in new_tokens:
+            self.subscribed_tokens.add(t)
+
+        if self.smart_ws and self.is_ws_connected:
+            try:
+                token_list = [{"exchangeType": exchange_type, "tokens": new_tokens}]
+                self.smart_ws.subscribe(
+                    correlation_id=f"sub_{int(time.time())}",
+                    mode=SmartWebSocketV2.QUOTE,
+                    token_list=token_list
+                )
+                print(f"[Angel WS] Subscribed {len(new_tokens)} tokens on exchange {exchange_type}")
+            except Exception as e:
+                print(f"[Angel WS Subscribe Error] {e}")
+
+    def resubscribe_all(self):
+        if not self.smart_ws or not self.subscribed_tokens:
+            return
+        try:
+            tokens_list = list(self.subscribed_tokens)
+            nfo_tokens = [t for t in tokens_list if t not in ["26000", "26009", "99926000", "99926009"]]
+            cm_tokens = [t for t in tokens_list if t in ["26000", "26009", "99926000", "99926009"]]
+
+            token_payload = []
+            if nfo_tokens:
+                token_payload.append({"exchangeType": 2, "tokens": nfo_tokens})
+            if cm_tokens:
+                token_payload.append({"exchangeType": 1, "tokens": cm_tokens})
+
+            if token_payload:
+                self.smart_ws.subscribe(
+                    correlation_id="resub_all",
+                    mode=SmartWebSocketV2.QUOTE,
+                    token_list=token_payload
+                )
+                print(f"[Angel WS] Resubscribed {len(tokens_list)} total tokens")
+        except Exception as e:
+            print(f"[Angel WS Resub Error] {e}")
+
+    def start_websocket(self):
+        if not self.is_authenticated or not self.auth_token or not self.feed_token:
+            return False
+
+        try:
+            if self.smart_ws:
+                try:
+                    self.smart_ws.close_connection()
+                except Exception:
+                    pass
+
+            self.smart_ws = SmartWebSocketV2(
+                auth_token=self.auth_token,
+                api_key=self.api_key,
+                client_code=self.client_id,
+                feed_token=self.feed_token,
+                max_retry_attempt=15,
+                retry_delay=3
+            )
+            self.smart_ws.on_data = self._on_ws_data
+            self.smart_ws.on_open = self._on_ws_open
+            self.smart_ws.on_close = self._on_ws_close
+            self.smart_ws.on_error = self._on_ws_error
+
+            t = threading.Thread(target=self.smart_ws.connect, daemon=True, name="AngelOne_WS_Thread")
+            t.start()
+            print("[AngelOne WS] Live market WebSocket thread launched successfully!")
+            return True
+        except Exception as e:
+            print(f"[Angel WS Start Error] {e}")
+            return False
 
     def get_ltp(self, exchange, symbol, token):
         """Fetch live LTP from Angel One REST API for a specific instrument"""
