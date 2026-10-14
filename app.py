@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import database
 database.init_db()
 
-from angel_service import angel_service
+from fyers_service import fyers_service
 import engine
 import scrip_manager
 
@@ -29,11 +29,23 @@ app.add_middleware(
 # Mobile & Desktop Access Allowed Anywhere
 
 # Models
+class FyersConnectRequest(BaseModel):
+    app_id: str
+    access_token: Optional[str] = ""
+    secret_key: Optional[str] = ""
+    auth_code: Optional[str] = ""
+    redirect_uri: Optional[str] = "https://trade.fyers.in/api-login/redirect-uri/index.html"
+
+class FyersAuthUrlRequest(BaseModel):
+    app_id: str
+    secret_key: Optional[str] = ""
+    redirect_uri: Optional[str] = "https://trade.fyers.in/api-login/redirect-uri/index.html"
+
 class AngelConnectRequest(BaseModel):
-    api_key: str
-    client_id: str
-    pin: str
-    totp_secret: str
+    api_key: Optional[str] = ""
+    client_id: Optional[str] = ""
+    pin: Optional[str] = ""
+    totp_secret: Optional[str] = ""
 
 class StrategyRequest(BaseModel):
     name: str
@@ -69,10 +81,10 @@ class RegisterRequest(BaseModel):
     pin: str
     display_name: Optional[str] = None
 
-# Indices Cache
+# Indices Cache - Correct Nifty Close: 22363.00
 indices_cache = {
-    "NIFTY": {"ltp": 22368.05, "close": 22520.45, "chg": -152.40, "chg_pct": -0.68},
-    "BANKNIFTY": {"ltp": 54842.80, "close": 55256.65, "chg": -413.85, "chg_pct": -0.75}
+    "NIFTY": {"ltp": 22363.00, "close": 22363.00, "chg": 0.00, "chg_pct": 0.00},
+    "BANKNIFTY": {"ltp": 51842.80, "close": 51842.80, "chg": 0.00, "chg_pct": 0.00}
 }
 
 active_watchlist = scrip_manager.get_default_watchlist_contracts()
@@ -220,21 +232,42 @@ def login_trader(req: LoginRequest):
 
 # Status & Market Info
 @app.get("/api/status")
+@app.get("/api/fyers/status")
 def get_market_status():
-    status = angel_service.get_market_status()
+    status = fyers_service.get_market_status()
     status["local_ip"] = "192.168.10.42"
     return status
 
-# Angel One Connect
-@app.post("/api/angel/connect")
-def connect_angel(req: AngelConnectRequest):
-    res = angel_service.connect(req.api_key, req.client_id, req.pin, req.totp_secret)
+# Fyers API Connect & Auth Endpoints
+@app.post("/api/fyers/connect")
+def connect_fyers(req: FyersConnectRequest):
+    res = fyers_service.connect(
+        app_id=req.app_id,
+        access_token=req.access_token,
+        secret_key=req.secret_key,
+        auth_code=req.auth_code,
+        redirect_uri=req.redirect_uri
+    )
     return res
+
+@app.post("/api/fyers/generate-auth-url")
+def generate_fyers_auth_url(req: FyersAuthUrlRequest):
+    res = fyers_service.generate_auth_url(
+        app_id=req.app_id,
+        secret_key=req.secret_key,
+        redirect_uri=req.redirect_uri
+    )
+    return res
+
+# Legacy Angel One compatibility alias
+@app.post("/api/angel/connect")
+def connect_angel_legacy(req: dict):
+    return {"success": False, "message": "Angel One has been replaced with Fyers API. Please use Fyers API settings."}
 
 def get_fallback_price(name: str, strike: float = 0.0, type_: str = "FUT") -> float:
     name_up = name.upper()
     if "NIFTY" in name_up and "BANK" not in name_up:
-        spot = indices_cache.get("NIFTY", {}).get("ltp", 22368.05)
+        spot = indices_cache.get("NIFTY", {}).get("ltp", 22363.00)
         if type_ == "CE" and strike > 0:
             diff = spot - strike
             return round(max(20.0, diff + 135.0), 2)
@@ -243,7 +276,7 @@ def get_fallback_price(name: str, strike: float = 0.0, type_: str = "FUT") -> fl
             return round(max(20.0, diff + 125.0), 2)
         return round(spot + 45.0, 2)
     elif "BANKNIFTY" in name_up or "BANK" in name_up:
-        spot = indices_cache.get("BANKNIFTY", {}).get("ltp", 54842.80)
+        spot = indices_cache.get("BANKNIFTY", {}).get("ltp", 51842.80)
         if type_ == "CE" and strike > 0:
             diff = spot - strike
             return round(max(45.0, diff + 290.0), 2)
@@ -290,15 +323,15 @@ def get_live_watchlist(user_id: int = 1):
         user_wl = database.get_user_watchlist(user_id)
 
     # Attach live quotes
-    m_stat = angel_service.get_market_status()
+    m_stat = fyers_service.get_market_status()
     enriched = []
     for item in user_wl:
         tok = str(item["token"])
-        if tok not in angel_service.live_prices or angel_service.live_prices[tok] <= 0:
+        if tok not in fyers_service.live_prices or fyers_service.live_prices[tok] <= 0:
             base_p = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
-            angel_service.live_prices[tok] = base_p
+            fyers_service.live_prices[tok] = base_p
 
-        ltp = float(angel_service.live_prices.get(tok, 150.0))
+        ltp = float(fyers_service.live_prices.get(tok, 150.0))
         if not m_stat.get("is_open"):
             close = ltp
             chg = 0.0
@@ -368,7 +401,7 @@ def delete_strategy_api(strategy_id: str, user_id: int = 1):
 # Positions API (with Hedge Benefit)
 @app.get("/api/positions")
 def get_positions(user_id: int = 1):
-    return engine.get_grouped_positions(user_id, angel_service.live_prices)
+    return engine.get_grouped_positions(user_id, fyers_service.live_prices)
 
 @app.post("/api/positions/exit")
 def exit_single_position(req: ExitPositionRequest):
@@ -384,11 +417,11 @@ class ExitGroupRequest(BaseModel):
 
 @app.post("/api/positions/exit-strategy")
 def exit_strategy_api(req: ExitStrategyRequest):
-    return engine.exit_strategy_positions(req.strategy_id, req.user_id or 1, angel_service.live_prices)
+    return engine.exit_strategy_positions(req.strategy_id, req.user_id or 1, fyers_service.live_prices)
 
 @app.post("/api/positions/exit-group")
 def exit_group_api(req: ExitGroupRequest):
-    return engine.exit_symbol_group(req.symbol, req.user_id or 1, angel_service.live_prices)
+    return engine.exit_symbol_group(req.symbol, req.user_id or 1, fyers_service.live_prices)
 
 # Orders API
 @app.get("/api/orders")
@@ -461,7 +494,7 @@ def get_desk_leaderboard_api(admin_pin: str = ""):
     conn.close()
     if not admin:
         raise HTTPException(status_code=403, detail="Unauthorized: Only Admin can view Desks Monitor.")
-    return engine.get_desk_leaderboard(angel_service.live_prices)
+    return engine.get_desk_leaderboard(fyers_service.live_prices)
 
 @app.get("/api/admin/all-positions")
 def get_admin_all_positions(admin_pin: str = ""):
@@ -484,7 +517,7 @@ def get_admin_all_positions(admin_pin: str = ""):
 
     for p in positions:
         tok = str(p["token"])
-        p["ltp"] = float(angel_service.live_prices.get(tok, p.get("ltp") or p["avg_price"]))
+        p["ltp"] = float(fyers_service.live_prices.get(tok, p.get("ltp") or p["avg_price"]))
         is_long = p["qty"] > 0
         pnl = (p["ltp"] - p["avg_price"]) * p["qty"] if is_long else (p["avg_price"] - p["ltp"]) * abs(p["qty"])
         p["pnl"] = round(pnl, 2)
@@ -527,48 +560,43 @@ def unlock_desk_api(req: dict):
     conn.close()
     return {"success": True, "message": f"Trader Desk {user_id} unlocked successfully."}
 
-# Background Live Quote Polling from Angel One SmartAPI
+# Background Live Quote Polling from Fyers API v3
 @app.on_event("startup")
 async def start_background_monitor():
     async def live_quote_loop():
-        angel_service.connect()
+        fyers_service.connect()
 
         while True:
             try:
-                m_status = angel_service.get_market_status()
+                m_status = fyers_service.get_market_status()
                 is_open = m_status.get("is_open", False)
 
                 if is_open:
-                    if angel_service.is_authenticated and angel_service.smart_api:
-                        # 1. Nifty 50 Index Quote
+                    if fyers_service.is_authenticated:
+                        # 1. Fetch Fyers Live Quotes for Indices
                         try:
-                            n_q = angel_service.smart_api.ltpData("NSE", "Nifty 50", "99926000")
-                            if n_q and n_q.get("status") and n_q.get("data"):
-                                d = n_q["data"]
-                                ltp = float(d.get("ltp", 0.0))
-                                close = float(d.get("close", ltp))
-                                chg = round(ltp - close, 2)
-                                chg_pct = round((chg / close) * 100, 2) if close else 0.0
-                                indices_cache["NIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
-                                angel_service.live_prices["99926000"] = ltp
-                        except Exception:
+                            quotes = fyers_service.get_quotes(["NSE:NIFTY50-INDEX", "NSE:NIFTYBANK-INDEX"])
+                            if quotes:
+                                if "NSE:NIFTY50-INDEX" in quotes:
+                                    n_d = quotes["NSE:NIFTY50-INDEX"]
+                                    indices_cache["NIFTY"] = {
+                                        "ltp": n_d["ltp"],
+                                        "close": n_d["close"],
+                                        "chg": n_d["chg"],
+                                        "chg_pct": n_d["chg_pct"]
+                                    }
+                                if "NSE:NIFTYBANK-INDEX" in quotes:
+                                    bn_d = quotes["NSE:NIFTYBANK-INDEX"]
+                                    indices_cache["BANKNIFTY"] = {
+                                        "ltp": bn_d["ltp"],
+                                        "close": bn_d["close"],
+                                        "chg": bn_d["chg"],
+                                        "chg_pct": bn_d["chg_pct"]
+                                    }
+                        except Exception as eq:
                             pass
 
-                        # 2. Bank Nifty Index Quote
-                        try:
-                            bn_q = angel_service.smart_api.ltpData("NSE", "Nifty Bank", "99926009")
-                            if bn_q and bn_q.get("status") and bn_q.get("data"):
-                                d = bn_q["data"]
-                                ltp = float(d.get("ltp", 0.0))
-                                close = float(d.get("close", ltp))
-                                chg = round(ltp - close, 2)
-                                chg_pct = round((chg / close) * 100, 2) if close else 0.0
-                                indices_cache["BANKNIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
-                                angel_service.live_prices["99926009"] = ltp
-                        except Exception:
-                            pass
-
-                        # 3. Watchlist & Active Position Quotes across all users
+                        # 2. Watchlist & Active Position Quotes across all users
                         try:
                             c_loop = database.get_connection()
                             cur_loop = c_loop.cursor()
@@ -580,21 +608,26 @@ async def start_background_monitor():
                             active_items = [dict(r) for r in cur_loop.fetchall()]
                             c_loop.close()
 
+                            fyers_sym_map = {}
                             for item in active_items:
-                                try:
-                                    tok = str(item["token"])
-                                    q = angel_service.smart_api.ltpData("NFO", item["name"], tok)
-                                    if q and q.get("status") and q.get("data"):
-                                        d = q["data"]
-                                        ltp = float(d.get("ltp", 0.0))
-                                        angel_service.live_prices[tok] = ltp
-                                    await asyncio.sleep(0.08)
-                                except Exception:
-                                    pass
+                                tok = str(item["token"])
+                                name = item.get("name", "")
+                                if name:
+                                    f_sym = f"NSE:{name}" if not name.startswith("NSE:") else name
+                                    fyers_sym_map[f_sym] = tok
+
+                            if fyers_sym_map:
+                                sym_list = list(fyers_sym_map.keys())[:50]
+                                f_quotes = fyers_service.get_quotes(sym_list)
+                                if f_quotes:
+                                    for f_sym, q_data in f_quotes.items():
+                                        tok = fyers_sym_map.get(f_sym)
+                                        if tok:
+                                            fyers_service.live_prices[tok] = q_data["ltp"]
                         except Exception:
                             pass
                     else:
-                        # Market is open but Angel One is not authenticated: live simulation during market hours
+                        # Market is open but Fyers is not authenticated: live simulation during market hours
                         n_step = round(random.choice([-1.5, -0.5, 0.0, 0.5, 1.5]), 2)
                         indices_cache["NIFTY"]["ltp"] = round(indices_cache["NIFTY"]["ltp"] + n_step, 2)
                         indices_cache["NIFTY"]["chg"] = round(indices_cache["NIFTY"]["ltp"] - indices_cache["NIFTY"]["close"], 2)
@@ -618,16 +651,16 @@ async def start_background_monitor():
 
                             for item in active_items:
                                 tok = str(item["token"])
-                                cur_p = angel_service.live_prices.get(tok)
+                                cur_p = fyers_service.live_prices.get(tok)
                                 if cur_p is None or cur_p <= 0:
                                     cur_p = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
                                 tick = round(random.choice([-0.20, -0.10, -0.05, 0.05, 0.10, 0.20]), 2)
-                                angel_service.live_prices[tok] = max(1.0, round(cur_p + tick, 2))
+                                fyers_service.live_prices[tok] = max(1.0, round(cur_p + tick, 2))
                         except Exception:
                             pass
 
-                    # 4. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
-                    alerts = engine.check_all_users_rms_and_sl(angel_service.live_prices)
+                    # 3. Check All Users SL, Target, 3:15 PM MIS & Daily 1% RMS Loss auto square-offs
+                    alerts = engine.check_all_users_rms_and_sl(fyers_service.live_prices)
                     if alerts:
                         print(f"[RMS/SL Alerts] {alerts}")
 
@@ -654,8 +687,8 @@ async def start_background_monitor():
 
                         for item in active_items:
                             tok = str(item["token"])
-                            if tok not in angel_service.live_prices or angel_service.live_prices[tok] <= 0:
-                                angel_service.live_prices[tok] = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
+                            if tok not in fyers_service.live_prices or fyers_service.live_prices[tok] <= 0:
+                                fyers_service.live_prices[tok] = get_fallback_price(item.get("name", ""), item.get("strike", 0.0), item.get("type", "FUT"))
                     except Exception:
                         pass
 

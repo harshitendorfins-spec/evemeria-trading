@@ -1,5 +1,5 @@
 @echo off
-title Evemeria Virtual F^&O Platform (Angel One Live)
+title Evemeria Virtual F^&O Platform (Fyers API Live)
 cd /d "%~dp0"
 
 echo ========================================================

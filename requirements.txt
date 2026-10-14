@@ -1,8 +1,5 @@
 fastapi>=0.100.0
 uvicorn>=0.23.0
-smartapi-python
-pyotp>=2.9.0
 requests>=2.31.0
 pydantic>=2.0.0
-logzero>=1.7.0
 websocket-client>=1.8.0

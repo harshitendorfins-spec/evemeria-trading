@@ -180,7 +180,25 @@ def init_db():
                 VALUES (?, ?, ?, 'Opening Virtual Capital Allocation', 'RECEIPT', 0.0, 10000000.0, 10000000.0)
             """, (i, now_date, now_time))
 
-    # 7. Angel One Settings Table
+    # 7. Fyers API Settings Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS fyers_settings (
+        id INTEGER PRIMARY KEY,
+        app_id TEXT,
+        access_token TEXT,
+        secret_key TEXT,
+        redirect_uri TEXT,
+        is_connected INTEGER DEFAULT 0,
+        last_connected TEXT
+    );
+    """)
+
+    cursor.execute("""
+    INSERT OR IGNORE INTO fyers_settings (id, app_id, access_token, secret_key, redirect_uri, is_connected)
+    VALUES (1, '', '', '', 'https://trade.fyers.in/api-login/redirect-uri/index.html', 0);
+    """)
+
+    # Keep angel_settings table for clean schema compatibility
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS angel_settings (
         id INTEGER PRIMARY KEY,
