@@ -100,53 +100,6 @@ async def broadcast_ws_message(msg: dict):
         except Exception:
             connected_websockets.discard(ws)
 
-def on_angel_tick_received(tick_obj: dict):
-    global main_loop, indices_cache
-    token = str(tick_obj.get("token", ""))
-    ltp = float(tick_obj.get("ltp", 0.0))
-    close = float(tick_obj.get("close", ltp))
-    chg = round(ltp - close, 2) if close > 0 else 0.0
-    chg_pct = round((chg / close) * 100, 2) if close > 0 else 0.0
-
-    if ltp <= 0:
-        return
-
-    # Check indices
-    if token in ["99926000", "26000"]:
-        indices_cache["NIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
-    elif token in ["99926009", "26009"]:
-        indices_cache["BANKNIFTY"] = {"ltp": ltp, "close": close, "chg": chg, "chg_pct": chg_pct}
-
-    # Update active watchlist
-    for item in active_watchlist:
-        if str(item.get("token")) == token:
-            item["ltp"] = ltp
-            item["close"] = close
-            item["chg"] = chg
-            item["chg_pct"] = chg_pct
-
-    # Trigger RMS and SL check immediately in real-time
-    try:
-        engine.check_all_users_rms_and_sl(angel_service.live_prices)
-    except Exception:
-        pass
-
-    # Broadcast real-time tick to all connected browsers
-    if main_loop and main_loop.is_running() and connected_websockets:
-        msg = {
-            "type": "tick",
-            "token": token,
-            "ltp": ltp,
-            "close": close,
-            "chg": chg,
-            "chg_pct": chg_pct,
-            "indices": indices_cache
-        }
-        asyncio.run_coroutine_threadsafe(broadcast_ws_message(msg), main_loop)
-
-# Register tick callback with AngelOneService
-angel_service.register_tick_callback(on_angel_tick_received)
-
 # WebSocket Endpoint for Real-Time Streaming to Browsers
 @app.websocket("/ws")
 async def websocket_terminal(ws: WebSocket):
@@ -158,15 +111,11 @@ async def websocket_terminal(ws: WebSocket):
             "type": "snapshot",
             "indices": indices_cache,
             "watchlist": active_watchlist,
-            "prices": angel_service.live_prices,
-            "ws_active": angel_service.is_ws_connected
+            "prices": fyers_service.live_prices,
+            "ws_active": fyers_service.is_authenticated
         })
         while True:
-            data = await ws.receive_json()
-            if data and data.get("action") == "subscribe":
-                tokens = data.get("tokens", [])
-                if tokens:
-                    angel_service.subscribe_tokens(tokens)
+            await ws.receive_text()
     except (WebSocketDisconnect, Exception):
         pass
     finally:
@@ -695,21 +644,10 @@ async def start_background_monitor():
             except Exception as e:
                 print(f"[Live Loop Error] {e}")
 
-            # If WebSocket is connected and streaming, backup REST poll can rest longer
-            sleep_time = 3.0 if angel_service.is_ws_connected else 1.5
-            await asyncio.sleep(sleep_time)
+            await asyncio.sleep(2.0)
 
     # Launch background tasks on startup
     asyncio.create_task(live_quote_loop())
-
-    # Pre-subscribe default watchlist and index tokens to Angel WebSocket
-    initial_tokens = [str(w.get("token")) for w in active_watchlist if w.get("token")]
-    angel_service.subscribe_tokens(initial_tokens, exchange_type=2)
-    angel_service.subscribe_tokens(["99926000", "99926009", "26000", "26009"], exchange_type=1)
-
-    # Launch WebSocket if authenticated
-    if angel_service.is_authenticated:
-        angel_service.start_websocket()
 
 @app.on_event("startup")
 async def startup_event():
